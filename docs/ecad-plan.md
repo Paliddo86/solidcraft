@@ -1,0 +1,95 @@
+# SolidCraft — Piano ECAD (PCB / Electronics)
+
+> Stato: **Fase 1 in corso** · Prossimo passo: 1.4 (engine test) · Ultimo aggiornamento: 2026-10-26
+> Base: branch `ecad` allineato a `upstream/main` (1cd14e24); PR #5092 portato con merge.
+
+Scopo: integrare un workspace di progettazione elettronica stile Fusion360
+"Electronics" (schematico + PCB + librerie + output di produzione), partendo
+dall'import KiCad già avviato upstream (#5091 / #5092).
+
+## Come usare e aggiornare questo file (protocollo per agenti)
+1. All'inizio di ogni sessione leggi: questo file, `AGENTS.md`, `ROADMAP.md`,
+   `docs/architecture.md` e lo stato git (`git status`, `git log --oneline -5`).
+2. Lavora su UNA voce alla volta. Spunta `[x]` solo quando è fatta E i test
+   passano (`cargo xtask ci` per le crate toccate; minimo `cargo test -p <crate>`).
+3. Prima di iniziare una voce controlla upstream (issue/PR) per lavoro già
+   esistente o claim attivi (#5091/#5092 per l'import KiCad).
+4. Sposta il marcatore `▶ IN CORSO` sulla voce attuale; non spuntare voci future.
+5. Al termine di ogni voce aggiorna "Stato" e "Prossimo passo" in alto, e
+   aggiungi una riga al "Log" (data, cosa è cambiato, prossimo passo).
+6. Non cancellare o riordinare le voci completate; aggiungi nuove voci in coda
+   alla loro fase. Ogni arco di lavoro = un commit/PR (vedi CONTRIBUTING).
+
+## Regole non negoziabili (richiamo)
+- Clean-room: niente lettura/copia di codice GPL (KiCad, LibrePCB, Horizon EDA,
+  QElectroTech, WireViz, Fritzing sono GPL). Solo specifiche pubbliche dei formati.
+- Niente prodotti CAD commerciali: non pilotare, scriptare, automatizzare o
+  estrarre dati da Fusion360/SolidWorks/Onshape; **non fare reverse engineering**
+  dei loro binari (anche solo per "studiare il comportamento"): la ricerca usa
+  solo documentazione pubblica + esperienza personale d'uso (#1624).
+- "Everything is a command" (`CommandSpec`, id `pcb.*`/`schematic.*`).
+- Layering `cargo xtask layers`; UI thin; icone solo dai master originali
+  (leggi `assets/AGENTS.md` prima di ogni icona).
+
+## Riferimenti upstream
+- #1624 Research Request: Electrical (linee guida ricerca + regole legali)
+- #5091 / #5092 KiCad PCB import (in progress, ~5.500 righe, 20 file)
+- #2825 roadmap: PCB "deferred"
+
+## Fase 0 — Groundwork & ricerca clean-room (nessun codice)
+- [x] 0.1 Leggere integralmente #1624 e #5091; riassumerle qui.
+- [ ] 0.2 Scrivere `docs/ecad-research.md` secondo il layout di #1624
+       (fundamentals, accuracy, programs, glossary, sources).
+- [ ] 0.3 Creare `tools/kicad-oracle/` (KiCad come processo esterno, stile
+       freecad-oracle) per generare `.kicad_pcb`/`.kicad_sch` di riferimento.
+
+## Fase 1 — Import KiCad: riprendere il lavoro upstream (#5092)
+- [x] 1.1 Recuperare il codice di #5092 (patch pubblica o fetch del fork
+       ahagelberg/solidcraft) e studiarlo; nessun claim in conflitto.
+- [x] 1.2 Portare parser `.kicad_pcb` (s-expression), outline/cutout/drill,
+       copper e footprint/componenti nel fork (MIT/Apache, stesso progetto).
+- [x] 1.3 Registrare il formato in `crates/io/src/formats.rs` + comando
+       `doc.open` con opzioni (thickness, copper, silkscreen, color, components).
+- [ ] 1.4 Portare/adattare i test (46 io + 4 engine) e farli passare.
+       ▶ io: 46/46 OK · engine: in corso
+
+## Fase 2 — Modello dati ECAD nativo + crate
+- [ ] 2.1 Creare `crates/solidcraft-ecad` (L3) con board/stackup/layer/track/
+       pad/via/footprint/net/zone (modello editabile, distinto dall'import MCAD).
+- [ ] 2.2 Vincoli di sicurezza: `get()` non `[i]`, check finite, cap su loop.
+- [ ] 2.3 Test unitari del modello (mm/rad, Z up).
+
+## Fase 3 — Board authoring MVP (core workspace PCB)
+- [ ] 3.1 `pcb.create` (documento board) + outline da sketch/dimensioni.
+- [ ] 3.2 Stackup: layer rame/core/prepreg, drill, thickness.
+- [ ] 3.3 Footprint/pad parametrici (SMD, THT) e libreria componenti.
+- [ ] 3.4 Vias, tracks (routing), copper pours/zones, silkscreen text.
+- [ ] 3.5 Nets e connettività (netlist, ratsnest/airwires).
+- [ ] 3.6 DRC: clearance, larghezza traccia, drill, annular ring.
+
+## Fase 4 — Schematic capture
+- [ ] 4.1 Documento schematico, simboli, wire, net label.
+- [ ] 4.2 Netlist da schematico.
+- [ ] 4.3 Sincronizzazione schematico ↔ PCB (forward/back annotation).
+
+## Fase 5 — Export
+- [ ] 5.1 Gerber RS-274X/X2 + Excellon drill.
+- [ ] 5.2 IPC-2581 e ODB++.
+- [ ] 5.3 STEP AP242 per co-design MCAD; BOM e pick-and-place.
+
+## Fase 6 — Integrazione MCAD
+- [ ] 6.1 Board 3D nel design (substrato, rame, componenti STEP).
+- [ ] 6.2 Co-design enclosure↔board: keep-in/keep-out, clearance.
+
+## Fase 7 — UI workspace
+- [ ] 7.1 Tab "Electronics" con `ui_kit::Container`, theme tokens.
+- [ ] 7.2 Canvas 2D board/schematic via `navigation::handle` (orbit off).
+- [ ] 7.3 Pannelli/toolbar via `app.run(id, params)` / `app.start(id)`.
+
+## Log
+- 2026-10-26 — Piano creato; repo allineato a upstream/main (1cd14e24); nessun
+  lavoro iniziato.
+- 2026-10-26 — Recuperato `refs/pull/5092/head` e portato con merge in `ecad`
+  (20 file, +5527). `cargo check -p solidcraft-io --lib` OK (6m20s).
+- 2026-10-26 — `cargo test -p solidcraft-io --lib kicad`: **46 passed, 0 failed**.
+  In corso `cargo test -p solidcraft-engine --lib kicad_import` (4 test).
