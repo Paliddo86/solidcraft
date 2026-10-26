@@ -327,6 +327,9 @@ pub struct Session {
     pub clipboard: Vec<solidcraft_doc::Feature>,
     /// Sketch geometry copied with `sketch.copy` (pasted by `sketch.paste`).
     pub sketch_clipboard: Option<cmd::sketch_clipboard::SketchClip>,
+    /// The schematic document of its own (`schematic.*`): symbols, wires and net labels,
+    /// separate from the 3D design and saved as a `.solidcraft-sch` file.
+    pub schematic: Option<solidcraft_ecad::Schematic>,
     /// Section Analysis: a view cut by a plane (origin, unit normal; the normal side is hidden).
     pub section: Option<(Vec3, Vec3)>,
     /// Whether the section's cut faces are hatched (`inspect.section`'s `hatch`; on by default).
@@ -495,6 +498,7 @@ impl Session {
             contact_meshes: Default::default(),
             clipboard: Vec::new(),
             sketch_clipboard: None,
+            schematic: None,
             section: None,
             section_hatch: true,
             colored_components: None,
@@ -1159,6 +1163,7 @@ impl Session {
             contact_meshes: self.contact_meshes.clone(),
             clipboard: self.clipboard.clone(),
             sketch_clipboard: self.sketch_clipboard.clone(),
+            schematic: self.schematic.clone(),
             section: None,
             section_hatch: true,
             colored_components: None,

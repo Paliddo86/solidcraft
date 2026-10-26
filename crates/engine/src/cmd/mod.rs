@@ -59,6 +59,7 @@ mod mesh;
 mod metadata;
 pub(crate) mod motion;
 mod parts;
+mod schematic;
 mod script;
 mod section;
 pub(crate) use measure_sel::{measure_items, shape_of};
@@ -303,6 +304,7 @@ pub fn command_specs() -> Vec<&'static CommandSpec> {
     v.extend(script::COMMANDS.iter());
     v.extend(parameters::COMMANDS.iter());
     v.extend(parameter_sweep::COMMANDS.iter());
+    v.extend(schematic::COMMANDS.iter());
     v.extend(file::COMMANDS.iter());
     v.extend(metadata::COMMANDS.iter());
     v.extend(inspect::COMMANDS.iter());

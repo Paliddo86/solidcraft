@@ -59,6 +59,8 @@ struct Command {
 const USAGE_RUN: &str = "  solidcraft-cli run <script.json|design.solidcraft|part.step> [--in design.solidcraft|part.step] [--out FILE]... [--save FILE] [--quiet] [--results] [--timings] [--profile] [--json-out FILE] [--allow-errors]\n  solidcraft-cli run --in <design.solidcraft|part.step> [--out FILE]...\n      (a timeline feature that fails fails the run and nothing is written; --allow-errors writes anyway)\n      (--timings prints {timings: [{index, command, ms}], total_ms} for a script, with --results its results too;\n       --profile adds each command's profile: {boolean_ms, tessellate_ms, other_ms}, the kernel's share)\n";
 /// `eval`'s lines in the usage.
 const USAGE_EVAL: &str = "  solidcraft-cli eval <script.json|design.solidcraft|part.step> [--json-out FILE]     (alias: inspect; or --in FILE)\n      (--json-out FILE writes the JSON that run (with --results, else the measurement) and eval print to FILE instead of stdout,\n       as plain UTF-8: a shell's > can re-encode it, e.g. Windows PowerShell adds a byte-order mark)\n";
+/// `schematic`'s lines in the usage.
+const USAGE_SCHEMATIC: &str = "  solidcraft-cli schematic <script.json> [--in design.solidcraft] [--json-out FILE]\n      (runs the script's schematic commands on a fresh session and prints the schematic:\n       symbols, wires, labels and the netlist; --in starts from a design)\n";
 /// `script`'s lines in the usage.
 const USAGE_SCRIPT: &str = "  solidcraft-cli script <design.solidcraft|script.json> [--out script.json]\n      (the design's history as a command script that eval and run replay)\n";
 /// `bench-open`'s lines in the usage.
@@ -106,6 +108,7 @@ const COMMANDS: &[Command] = &[
     Command { name: "run", usage: USAGE_RUN, listed: true },
     Command { name: "eval", usage: USAGE_EVAL, listed: true },
     Command { name: "inspect", usage: USAGE_EVAL, listed: false },
+    Command { name: "schematic", usage: USAGE_SCHEMATIC, listed: true },
     Command { name: "script", usage: USAGE_SCRIPT, listed: true },
     Command { name: "bench-open", usage: USAGE_BENCH_OPEN, listed: true },
     Command { name: "bench-agent", usage: USAGE_BENCH_AGENT, listed: true },
@@ -141,6 +144,7 @@ fn main() -> ExitCode {
         }
         Some("run") => cmd_run(&args[1..]),
         Some("eval" | "inspect") => cmd_eval(&args[1..]),
+        Some("schematic") => cmd_schematic(&args[1..]),
         Some("script") => cmd_script(&args[1..]),
         Some("snapshot") => cmd_snapshot(&args[1..]),
         Some("render") => render::run(&args[1..]),
@@ -391,6 +395,27 @@ fn cmd_run(args: &[String]) -> Result<(), String> {
         print_json(&m, json_out)?;
     }
     Ok(())
+}
+
+/// `schematic`: run a schematic script and print the schematic (symbols, wires, labels, nets).
+fn cmd_schematic(args: &[String]) -> Result<(), String> {
+    let json_out = json_out(args)?;
+    known_args("schematic", args, &["--in", "--json-out"], &[], true)?;
+    let base = flag(args, "--in");
+    let path = positional(args);
+    if path.is_none() && base.is_none() {
+        return Err(usage());
+    }
+    let mut s = match base {
+        Some(b) => load(b)?,
+        None => Session::default(),
+    };
+    if let Some(p) = path {
+        let v = read_json(p)?;
+        s.run_script(&v).map_err(|e| e.to_string())?;
+    }
+    let info = s.execute("schematic.info", &json!({})).map_err(|e| e.to_string())?;
+    print_json(&info, json_out)
 }
 
 /// The session `run` and `snapshot` start from: `--in` (a design or STEP file) with the

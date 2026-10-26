@@ -1,6 +1,6 @@
 # SolidCraft — Piano ECAD (PCB / Electronics)
 
-> Stato: **Fase 1 completata** · Prossimo passo: Fase 2 (crate ECAD nativa) · Ultimo aggiornamento: 2026-10-26
+> Stato: **Fase 4 (schematic capture) MVP completata** · Prossimo passo: Fase 2/3 (modello board) · Ultimo aggiornamento: 2026-10-26
 > Base: branch `ecad` allineato a `upstream/main` (1cd14e24); PR #5092 portato con merge.
 
 Scopo: integrare un workspace di progettazione elettronica stile Fusion360
@@ -81,10 +81,13 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
        ▶ io: 46/46 OK · engine: 4/4 OK
 
 ## Fase 2 — Modello dati ECAD nativo + crate
-- [ ] 2.1 Creare `crates/solidcraft-ecad` (L3) con board/stackup/layer/track/
-       pad/via/footprint/net/zone (modello editabile, distinto dall'import MCAD).
-- [ ] 2.2 Vincoli di sicurezza: `get()` non `[i]`, check finite, cap su loop.
-- [ ] 2.3 Test unitari del modello (mm/rad, Z up).
+- [x] 2.0 Creare `crates/solidcraft-ecad` (L3) con il modello **schematico**
+       (`Symbol`, `Pin`, `Wire`, `Label`, `Net`, libreria simboli) e la netlist.
+- [ ] 2.1 Modello **board** (board/stackup/layer/track/pad/via/footprint/net/zone)
+       nello stesso crate, distinto dall'import MCAD.
+- [x] 2.2 Vincoli di sicurezza: `get()` non `[i]`, check finite, cap su loop,
+       `validate()` sul file letto.
+- [x] 2.3 Test unitari del modello (5 test in `solidcraft-ecad`).
 
 ## Fase 3 — Board authoring MVP (core workspace PCB)
 - [ ] 3.1 `pcb.create` (documento board) + outline da sketch/dimensioni.
@@ -95,8 +98,10 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
 - [ ] 3.6 DRC: clearance, larghezza traccia, drill, annular ring.
 
 ## Fase 4 — Schematic capture
-- [ ] 4.1 Documento schematico, simboli, wire, net label.
-- [ ] 4.2 Netlist da schematico.
+- [x] 4.1 Documento schematico, simboli, wire, net label (`schematic.create`,
+       `schematic.symbol.place`, `schematic.wire`, `schematic.label`,
+       `schematic.info`, `schematic.save`, `schematic.open`; CLI `schematic`).
+- [x] 4.2 Netlist da schematico (unione dei punti su griglia 0.001 mm).
 - [ ] 4.3 Sincronizzazione schematico ↔ PCB (forward/back annotation).
 
 ## Fase 5 — Export
@@ -122,3 +127,8 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
 - 2026-10-26 — Metodo veloce (opt-level 0 via `--config`): i 4 test
   `cargo test -p solidcraft-engine --lib kicad_import` passano, build in
   **8m25s** (il profilo lento era a 26+ min sui soli deps). **Fase 1 completata**.
+- 2026-10-26 — Fase 4 MVP: nuova crate `solidcraft-ecad` (L3) con modello
+  schematico e netlist; comandi `schematic.*`; CLI `schematic`. Build CLI
+  **1m10s** (opt-level 0), test **5/5** (ecad) e **4/4** (engine). Demo:
+  netlist VIN/FILTER/OUT/GND/VCC corretta.
+- 2026-10-26 — In attesa di conferma prima del modello board (Fase 2/3).

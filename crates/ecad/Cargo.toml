@@ -1,0 +1,13 @@
+[package]
+name = "solidcraft-ecad"
+description = "SolidCraft electronic design: the schematic model (symbols, wires, net labels) and its netlist"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
