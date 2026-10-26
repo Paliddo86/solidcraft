@@ -31,6 +31,33 @@ dall'import KiCad già avviato upstream (#5091 / #5092).
 - Layering `cargo xtask layers`; UI thin; icone solo dai master originali
   (leggi `assets/AGENTS.md` prima di ogni icona).
 
+## Build e anteprima veloce (dev)
+La macchina di sviluppo può essere lenta: preferire questi percorsi.
+- **Feedback veloce (senza codegen)**: `cargo check -p <crate>`.
+- **Profilo consigliato dal repo**: `--profile ci` (line tables, niente
+  debug-assertions; deps a opt-level 2). È il profilo dei test CI.
+- **Compilazione più rapida in assoluto** (verificato: profilo "unoptimized"):
+  ```sh
+  cargo build --profile ci \
+    --config 'profile.ci.opt-level=0' \
+    --config 'profile.ci.package."*".opt-level=0' \
+    -p solidcraft-cli
+  ```
+  Compila a opt-level 0 (build molto più veloce, runtime più lento): adatto
+  all'anteprima, non ai test.
+- **Anteprima headless (senza GUI)**: costruire `solidcraft-cli`, non l'app
+  desktop (la CLI non trascina egui/eframe). Uno script JSON con `doc.open`,
+  poi:
+  ```sh
+  solidcraft-cli snapshot preview.json --out /tmp/board.png --view iso
+  ```
+  (con `SOLIDCRAFT_GPU=cpu` se non c'è un adapter GPU).
+- **Evitare ricompilazioni inutili**: `-p` diversi possono risolvere feature
+  diverse e ricompilare i deps pesanti (es. `cadmpeg-ir`). Usare una sola
+  invocazione con più `-p` quando possibile.
+- `sccache` è usato in CI ma non è indispensabile in locale (cache tra build
+  pulite).
+
 ## Riferimenti upstream
 - #1624 Research Request: Electrical (linee guida ricerca + regole legali)
 - #5091 / #5092 KiCad PCB import (in progress, ~5.500 righe, 20 file)
