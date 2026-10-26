@@ -1,6 +1,6 @@
 # SolidCraft — Piano ECAD (PCB / Electronics)
 
-> Stato: **Fase 1 in corso** · Prossimo passo: 1.4 (engine test) · Ultimo aggiornamento: 2026-10-26
+> Stato: **Fase 1 completata** · Prossimo passo: Fase 2 (crate ECAD nativa) · Ultimo aggiornamento: 2026-10-26
 > Base: branch `ecad` allineato a `upstream/main` (1cd14e24); PR #5092 portato con merge.
 
 Scopo: integrare un workspace di progettazione elettronica stile Fusion360
@@ -77,8 +77,8 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
        copper e footprint/componenti nel fork (MIT/Apache, stesso progetto).
 - [x] 1.3 Registrare il formato in `crates/io/src/formats.rs` + comando
        `doc.open` con opzioni (thickness, copper, silkscreen, color, components).
-- [ ] 1.4 Portare/adattare i test (46 io + 4 engine) e farli passare.
-       ▶ io: 46/46 OK · engine: in corso
+- [x] 1.4 Portare/adattare i test (46 io + 4 engine) e farli passare.
+       ▶ io: 46/46 OK · engine: 4/4 OK
 
 ## Fase 2 — Modello dati ECAD nativo + crate
 - [ ] 2.1 Creare `crates/solidcraft-ecad` (L3) con board/stackup/layer/track/
@@ -119,4 +119,6 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
 - 2026-10-26 — Recuperato `refs/pull/5092/head` e portato con merge in `ecad`
   (20 file, +5527). `cargo check -p solidcraft-io --lib` OK (6m20s).
 - 2026-10-26 — `cargo test -p solidcraft-io --lib kicad`: **46 passed, 0 failed**.
-  In corso `cargo test -p solidcraft-engine --lib kicad_import` (4 test).
+- 2026-10-26 — Metodo veloce (opt-level 0 via `--config`): i 4 test
+  `cargo test -p solidcraft-engine --lib kicad_import` passano, build in
+  **8m25s** (il profilo lento era a 26+ min sui soli deps). **Fase 1 completata**.
