@@ -97,6 +97,9 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
 - [x] 3.4 Vias, tracks (routing), copper zones (testo silkscreen: ancora da fare).
 - [x] 3.5 Nets e riepilogo connettività (ratsnest/airwires: dopo).
 - [ ] 3.6 DRC: clearance, larghezza traccia, drill, annular ring.
+- [x] 3.7 Simboli schematici **standard** (resistenza IEC, condensatore a piastre,
+       induttanza, diodo, LED, IC a 8 pin, ground, VCC, connettore) disegnati da
+       `symbol_primitives` in SVG e nella UI.
 
 ## Fase 4 — Schematic capture
 - [x] 4.1 Documento schematico, simboli, wire, net label (`schematic.create`,
@@ -120,6 +123,14 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
        sola quando esiste uno schema; `crates/ui-egui/src/schematic_panel.rs`).
 - [x] 7.4 Finestra **PCB** read-only nell'app (outline, zone, track, pad, via;
        `crates/ui-egui/src/pcb_panel.rs`).
+- [x] 7.5 Workspace **Electronics** come Design/Render: voce nel selettore,
+       central panel con tab **Schematic/PCB** e i due canvas
+       (`crates/ui-egui/src/electronics_workspace.rs`); il selettore passa tra
+       Design/Render/Electronics e il canale di controllo accetta `electronics`.
+- [ ] 7.6 Ribbon/toolbar elettronici dedicati (`schematic.*`/`pcb.*`) e
+       pan/zoom del canvas via `navigation::handle`.
+- [ ] 7.7 Editing nella UI: selezione, trascinamento dei simboli/footprint,
+       routing delle tracce; poi DRC e ratsnest nel workspace.
 - [ ] 7.1 Tab "Electronics" con `ui_kit::Container`, theme tokens.
 - [ ] 7.2 Canvas 2D board/schematic via `navigation::handle` (orbit off).
 - [ ] 7.3 Pannelli/toolbar via `app.run(id, params)` / `app.start(id)`.
@@ -151,3 +162,8 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
   comandi `pcb.*`; CLI `pcb` con `--svg`; finestra **PCB** nella UI. Test
   **10/10** (ecad) e **4/4** (engine). Demo "Power Supply": 8 footprint,
   7 track, 3 via, 1 zone, net VIN/FILTER/OUT/GND/VCC.
+- 2026-10-27 — Simboli **standard** (IEC/forme convenzionali) via
+  `symbol_primitives`, usati da SVG e UI.
+- 2026-10-27 — Workspace **Electronics** integrato come Design/Render:
+  selettore, central panel con tab Schematic/PCB, canvas. Priorità aggiornata:
+  prima la grafica della sezione Electronics, poi DRC/ratsnest/editing.

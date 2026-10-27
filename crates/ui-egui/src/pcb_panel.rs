@@ -8,6 +8,9 @@ use crate::SolveApp;
 /// Open the window when a board exists and the user has not just closed it. Adding anything to
 /// the board (its `next_id` moves) opens it again.
 pub fn open_if_any(app: &mut SolveApp) {
+    if crate::electronics_workspace::active(app) {
+        return;
+    }
     let Some(board) = app.session.pcb.as_ref() else { return };
     let fingerprint = board.next_id;
     if app.pcb_panel.is_none() && app.pcb_panel_closed_for != Some(fingerprint) {
@@ -22,6 +25,9 @@ pub struct Panel {}
 /// Draw the window when it is open. Called once per frame.
 pub fn show(app: &mut SolveApp, ctx: &egui::Context) {
     if app.pcb_panel.is_none() {
+        return;
+    }
+    if crate::electronics_workspace::active(app) {
         return;
     }
     let Some(board) = app.session.pcb.as_ref() else {

@@ -8,6 +8,9 @@ use crate::SolveApp;
 /// Open the window when a schematic exists and the user has not just closed it. Adding anything
 /// to the schematic (its `next_id` moves) opens it again.
 pub fn open_if_any(app: &mut SolveApp) {
+    if crate::electronics_workspace::active(app) {
+        return;
+    }
     let Some(sch) = app.session.schematic.as_ref() else { return };
     let fingerprint = sch.next_id;
     if app.schematic_panel.is_none() && app.schematic_panel_closed_for != Some(fingerprint) {
@@ -22,6 +25,9 @@ pub struct Panel {}
 /// Draw the window when it is open. Called once per frame.
 pub fn show(app: &mut SolveApp, ctx: &egui::Context) {
     if app.schematic_panel.is_none() {
+        return;
+    }
+    if crate::electronics_workspace::active(app) {
         return;
     }
     let Some(sch) = app.session.schematic.as_ref() else {
@@ -85,6 +91,9 @@ pub fn show(app: &mut SolveApp, ctx: &egui::Context) {
                     continue;
                 }
                 let pad = 2.0;
+                let a = to_screen([min_x - pad, max_y + pad]);
+                let b = to_screen([max_x + pad, min_y - pad]);
+                let box_rect = Rect::from_min_max(a.min(b), a.max(b));
                 for primitive in &symbol.primitives {
                     match primitive {
                         solidcraft_ecad::Primitive::Polyline { points, width, closed, filled } => {

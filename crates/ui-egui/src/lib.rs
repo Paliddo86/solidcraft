@@ -60,6 +60,7 @@ pub mod drag_extrude;
 pub mod drag_snap;
 pub mod easyprint_ui;
 pub mod edit_clipboard;
+pub mod electronics_workspace;
 mod feature_edit;
 #[cfg(test)]
 mod font_literals_tests;
@@ -467,6 +468,8 @@ pub struct SolveApp {
     /// The PCB window, when open, and the board's `next_id` it was closed for.
     pub pcb_panel: Option<pcb_panel::Panel>,
     pub pcb_panel_closed_for: Option<u64>,
+    /// The Electronics workspace (schematic and board canvases), when open.
+    pub electronics: electronics_workspace::State,
     material_card_review: Option<material_card_review::ReviewWindow>,
     /// Context menus, rename box and Properties window.
     pub menu: context_menu::MenuState,
@@ -684,6 +687,7 @@ impl SolveApp {
             schematic_panel_closed_for: None,
             pcb_panel: None,
             pcb_panel_closed_for: None,
+            electronics: Default::default(),
             material_card_review: None,
             menu: context_menu::MenuState::default(),
             gesture: mouse_gesture::State::default(),
@@ -2224,7 +2228,7 @@ impl SolveApp {
             }
         }
         let floating = ui_kit::Container::new(ui.ctx(), ui_kit::Surface::Panel).floating();
-        let show_timeline = self.ui.show_timeline && !render_workspace::active(self);
+        let show_timeline = self.ui.show_timeline && !render_workspace::active(self) && !electronics_workspace::active(self);
         let left_timeline = show_timeline && self.preferences.timeline_left;
         timeline_left::animate_folds(self, ui.ctx());
         if !floating && !self.embedded {
@@ -2341,7 +2345,9 @@ impl SolveApp {
     }
 
     fn show_workspace(&mut self, ui: &mut egui::Ui) {
-        if render_workspace::active(self) {
+        if electronics_workspace::active(self) {
+            electronics_workspace::show(self, ui);
+        } else if render_workspace::active(self) {
             render_workspace::show(self, ui);
         } else {
             viewport::show(self, ui);

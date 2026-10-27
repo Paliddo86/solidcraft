@@ -432,14 +432,26 @@ fn dispatch(app: &mut SolveApp, ctx: &egui::Context, method: &str, p: &Value) ->
     match method {
         "ui.workspace" => {
             if let Some(workspace) = s("workspace") {
-                if !matches!(workspace, "design" | "render") {
-                    return err("workspace must be design or render");
+                if !matches!(workspace, "design" | "render" | "electronics") {
+                    return err("workspace must be design, render or electronics");
                 }
-                if let Err(e) = crate::render_workspace::enter(app, workspace == "render") {
+                let result = if workspace == "electronics" {
+                    crate::electronics_workspace::enter(app, true)
+                } else {
+                    crate::electronics_workspace::enter(app, false).and_then(|_| crate::render_workspace::enter(app, workspace == "render"))
+                };
+                if let Err(e) = result {
                     return err(e);
                 }
             }
-            ok(json!({"workspace":if crate::render_workspace::active(app) {"render"} else {"design"}}))
+            let current = if crate::electronics_workspace::active(app) {
+                "electronics"
+            } else if crate::render_workspace::active(app) {
+                "render"
+            } else {
+                "design"
+            };
+            ok(json!({"workspace": current}))
         }
         "engine.execute" | "command" => {
             let Some(id) = s("command").or(s("id")) else { return err("missing `command`") };
