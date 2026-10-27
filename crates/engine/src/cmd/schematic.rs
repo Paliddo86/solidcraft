@@ -14,6 +14,7 @@ const LABEL: &str = "schematic.label";
 const INFO: &str = "schematic.info";
 const SAVE: &str = "schematic.save";
 const OPEN: &str = "schematic.open";
+const SVG: &str = "schematic.export_svg";
 
 pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new(CREATE, "New Schematic", create).noundo().doc_only().params(
@@ -36,6 +37,9 @@ pub static COMMANDS: &[CommandSpec] = &[
     ),
     CommandSpec::new(OPEN, "Open Schematic", open).noundo().doc_only().params(
         "path: read a schematic JSON file (replaces the session's schematic) → path, name, symbols, wires, labels",
+    ),
+    CommandSpec::new(SVG, "Export Schematic SVG", export_svg).noundo().doc_only().params(
+        "path: write the schematic as an SVG picture (a quick look at it) → path, bytes",
     ),
 ];
 
@@ -107,6 +111,14 @@ fn info(s: &mut Session, _p: &Value) -> Result<Value> {
         }
         None => Ok(json!({"exists": false})),
     }
+}
+
+fn export_svg(s: &mut Session, p: &Value) -> Result<Value> {
+    let path = str_(p, "path").ok_or_else(|| bad(SVG, "`path` is where to write the SVG"))?;
+    let sch = s.schematic.as_ref().ok_or_else(|| bad(SVG, "no schematic yet: run schematic.create first"))?;
+    let text = sch.to_svg();
+    std::fs::write(path, text.as_bytes()).map_err(|why| bad(SVG, format!("{path}: {why}")))?;
+    Ok(json!({"path": path, "bytes": text.len()}))
 }
 
 fn save(s: &mut Session, p: &Value) -> Result<Value> {
@@ -225,6 +237,22 @@ mod tests {
         let r = run(&mut t, OPEN, json!({"path": path.to_string_lossy()}));
         assert_eq!(r["symbols"], json!(1));
         assert_eq!(r["name"], json!("Power"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_schematic_exports_an_svg() {
+        let mut s = Session::default();
+        run(&mut s, CREATE, json!({}));
+        run(&mut s, PLACE, json!({"kind": "resistor", "at": [50, 50]}));
+        let dir = std::env::temp_dir().join(format!("solidcraft-schematic-svg-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("schematic.svg");
+        let r = run(&mut s, SVG, json!({"path": path.to_string_lossy()}));
+        assert!(r["bytes"].as_u64().unwrap() > 100, "{r}");
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(text.starts_with("<svg"), "{text}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

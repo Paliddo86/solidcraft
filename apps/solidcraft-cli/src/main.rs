@@ -60,7 +60,7 @@ const USAGE_RUN: &str = "  solidcraft-cli run <script.json|design.solidcraft|par
 /// `eval`'s lines in the usage.
 const USAGE_EVAL: &str = "  solidcraft-cli eval <script.json|design.solidcraft|part.step> [--json-out FILE]     (alias: inspect; or --in FILE)\n      (--json-out FILE writes the JSON that run (with --results, else the measurement) and eval print to FILE instead of stdout,\n       as plain UTF-8: a shell's > can re-encode it, e.g. Windows PowerShell adds a byte-order mark)\n";
 /// `schematic`'s lines in the usage.
-const USAGE_SCHEMATIC: &str = "  solidcraft-cli schematic <script.json> [--in design.solidcraft] [--json-out FILE]\n      (runs the script's schematic commands on a fresh session and prints the schematic:\n       symbols, wires, labels and the netlist; --in starts from a design)\n";
+const USAGE_SCHEMATIC: &str = "  solidcraft-cli schematic <script.json> [--in design.solidcraft] [--svg FILE] [--json-out FILE]\n      (runs the script's schematic commands on a fresh session and prints the schematic:\n       symbols, wires, labels and the netlist; --in starts from a design; --svg writes a picture)\n";
 /// `script`'s lines in the usage.
 const USAGE_SCRIPT: &str = "  solidcraft-cli script <design.solidcraft|script.json> [--out script.json]\n      (the design's history as a command script that eval and run replay)\n";
 /// `bench-open`'s lines in the usage.
@@ -400,7 +400,7 @@ fn cmd_run(args: &[String]) -> Result<(), String> {
 /// `schematic`: run a schematic script and print the schematic (symbols, wires, labels, nets).
 fn cmd_schematic(args: &[String]) -> Result<(), String> {
     let json_out = json_out(args)?;
-    known_args("schematic", args, &["--in", "--json-out"], &[], true)?;
+    known_args("schematic", args, &["--in", "--json-out", "--svg"], &[], true)?;
     let base = flag(args, "--in");
     let path = positional(args);
     if path.is_none() && base.is_none() {
@@ -415,6 +415,10 @@ fn cmd_schematic(args: &[String]) -> Result<(), String> {
         s.run_script(&v).map_err(|e| e.to_string())?;
     }
     let info = s.execute("schematic.info", &json!({})).map_err(|e| e.to_string())?;
+    if let Some(out) = flag(args, "--svg") {
+        s.execute("schematic.export_svg", &json!({"path": out})).map_err(|e| e.to_string())?;
+        eprintln!("{out}: schematic SVG");
+    }
     print_json(&info, json_out)
 }
 

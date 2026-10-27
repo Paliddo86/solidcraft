@@ -445,6 +445,84 @@ impl Schematic {
         })
     }
 
+    /// The schematic as an SVG picture (4 px per millimetre): a quick look at what the commands
+    /// built, with the sheet's lower-left corner at the picture's lower-left corner.
+    pub fn to_svg(&self) -> String {
+        const SCALE: f64 = 4.0;
+        let w = (self.width_mm * SCALE).max(1.0);
+        let h = (self.height_mm * SCALE).max(1.0);
+        let x = |x: f64| x * SCALE;
+        let y = |y: f64| (self.height_mm - y) * SCALE;
+        let mut svg = String::new();
+        svg.push_str(&format!("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{w:.2}\" height=\"{h:.2}\" viewBox=\"0 0 {w:.2} {h:.2}\">\n"));
+        svg.push_str(&format!("<rect width=\"{w:.2}\" height=\"{h:.2}\" fill=\"#ffffff\"/>\n"));
+        let m = 10.0 * SCALE;
+        svg.push_str(&format!(
+            "<rect x=\"{m:.2}\" y=\"{m:.2}\" width=\"{:.2}\" height=\"{:.2}\" fill=\"none\" stroke=\"#333\" stroke-width=\"1\"/>\n",
+            (w - 2.0 * m).max(1.0),
+            (h - 2.0 * m).max(1.0)
+        ));
+        svg.push_str(&format!(
+            "<text x=\"{m:.2}\" y=\"{:.2}\" font-family=\"sans-serif\" font-size=\"18\" fill=\"#111\">{}</text>\n",
+            m - 6.0,
+            escape(&self.name)
+        ));
+        for wire in &self.wires {
+            let pts: Vec<String> = wire.points.iter().map(|p| format!("{:.2},{:.2}", x(p[0]), y(p[1]))).collect();
+            svg.push_str(&format!("<polyline points=\"{}\" fill=\"none\" stroke=\"#0a7d32\" stroke-width=\"2\"/>\n", pts.join(" ")));
+        }
+        for symbol in &self.symbols {
+            let world: Vec<[f64; 2]> = symbol.pins.iter().map(|p| symbol.pin_world(p)).collect();
+            let (mut min_x, mut min_y) = (f64::INFINITY, f64::INFINITY);
+            let (mut max_x, mut max_y) = (f64::NEG_INFINITY, f64::NEG_INFINITY);
+            for p in &world {
+                min_x = min_x.min(p[0]);
+                min_y = min_y.min(p[1]);
+                max_x = max_x.max(p[0]);
+                max_y = max_y.max(p[1]);
+            }
+            if !min_x.is_finite() {
+                min_x = symbol.at[0];
+                max_x = symbol.at[0];
+                min_y = symbol.at[1];
+                max_y = symbol.at[1];
+            }
+            let pad = 3.0;
+            let (bx, by) = (x(min_x - pad), y(max_y + pad));
+            let (bw, bh) = ((max_x - min_x + 2.0 * pad) * SCALE, (max_y - min_y + 2.0 * pad) * SCALE);
+            svg.push_str(&format!(
+                "<rect x=\"{bx:.2}\" y=\"{by:.2}\" width=\"{bw:.2}\" height=\"{bh:.2}\" rx=\"3\" fill=\"#f4e7c5\" stroke=\"#8a6d1a\" stroke-width=\"1.2\"/>\n"
+            ));
+            svg.push_str(&format!(
+                "<text x=\"{:.2}\" y=\"{:.2}\" font-family=\"sans-serif\" font-size=\"12\" fill=\"#222\">{}</text>\n",
+                x(symbol.at[0]),
+                y(max_y + pad + 1.0),
+                escape(&symbol.reference)
+            ));
+            if !symbol.value.is_empty() {
+                svg.push_str(&format!(
+                    "<text x=\"{:.2}\" y=\"{:.2}\" font-family=\"sans-serif\" font-size=\"10\" fill=\"#555\">{}</text>\n",
+                    x(symbol.at[0]),
+                    y(min_y - pad - 1.0),
+                    escape(&symbol.value)
+                ));
+            }
+            for p in &world {
+                svg.push_str(&format!("<circle cx=\"{:.2}\" cy=\"{:.2}\" r=\"2.2\" fill=\"#b8860b\"/>\n", x(p[0]), y(p[1])));
+            }
+        }
+        for label in &self.labels {
+            svg.push_str(&format!(
+                "<text x=\"{:.2}\" y=\"{:.2}\" font-family=\"sans-serif\" font-size=\"11\" fill=\"#1a4fbf\">{}</text>\n",
+                x(label.at[0]) + 3.0,
+                y(label.at[1]) - 3.0,
+                escape(&label.net)
+            ));
+        }
+        svg.push_str("</svg>\n");
+        svg
+    }
+
     /// Check a schematic read from a file before it replaces a session's.
     pub fn validate(&self) -> Result<(), String> {
         if !finite_size(self.width_mm) || !finite_size(self.height_mm) {
@@ -506,6 +584,22 @@ impl Schematic {
     pub fn from_json(bytes: &[u8]) -> serde_json::Result<Self> {
         serde_json::from_slice(bytes)
     }
+}
+
+/// Text as SVG/XML content: the five characters XML reserves.
+fn escape(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&apos;"),
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -570,5 +664,18 @@ mod tests {
         let back = Schematic::from_json(text.as_bytes()).unwrap();
         assert_eq!(back, sch);
         assert!(back.validate().is_ok());
+    }
+
+    #[test]
+    fn the_schematic_draws_itself_as_svg() {
+        let mut sch = Schematic::default();
+        sch.place("resistor", [50.0, 50.0], Some("R1"), Some("10k"), 0.0).unwrap();
+        sch.add_wire(&[[46.19, 50.0], [40.0, 50.0]], None).unwrap();
+        sch.add_label("VCC", [40.0, 50.0]).unwrap();
+        let svg = sch.to_svg();
+        assert!(svg.starts_with("<svg"), "{svg}");
+        assert!(svg.contains("polyline"));
+        assert!(svg.contains("VCC"));
+        assert!(svg.contains("R1"));
     }
 }

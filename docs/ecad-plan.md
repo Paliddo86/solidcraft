@@ -65,9 +65,9 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
 
 ## Fase 0 — Groundwork & ricerca clean-room (nessun codice)
 - [x] 0.1 Leggere integralmente #1624 e #5091; riassumerle qui.
-- [ ] 0.2 Scrivere `docs/ecad-research.md` secondo il layout di #1624
+- [x] 0.2 Scrivere `docs/ecad-research.md` secondo il layout di #1624
        (fundamentals, accuracy, programs, glossary, sources).
-- [ ] 0.3 Creare `tools/kicad-oracle/` (KiCad come processo esterno, stile
+- [x] 0.3 Creare `tools/kicad-oracle/` (KiCad come processo esterno, stile
        freecad-oracle) per generare `.kicad_pcb`/`.kicad_sch` di riferimento.
 
 ## Fase 1 — Import KiCad: riprendere il lavoro upstream (#5092)
@@ -100,7 +100,8 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
 ## Fase 4 — Schematic capture
 - [x] 4.1 Documento schematico, simboli, wire, net label (`schematic.create`,
        `schematic.symbol.place`, `schematic.wire`, `schematic.label`,
-       `schematic.info`, `schematic.save`, `schematic.open`; CLI `schematic`).
+       `schematic.info`, `schematic.save`, `schematic.open`,
+       `schematic.export_svg`; CLI `schematic` con `--svg`).
 - [x] 4.2 Netlist da schematico (unione dei punti su griglia 0.001 mm).
 - [ ] 4.3 Sincronizzazione schematico ↔ PCB (forward/back annotation).
 
@@ -132,3 +133,6 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
   **1m10s** (opt-level 0), test **5/5** (ecad) e **4/4** (engine). Demo:
   netlist VIN/FILTER/OUT/GND/VCC corretta.
 - 2026-10-26 — In attesa di conferma prima del modello board (Fase 2/3).
+- 2026-10-26 — **Fase 0 completata**: `docs/ecad-research.md` (ricerca clean-room)
+  e `tools/kicad-oracle/` (KiCad come programma esterno). Aggiunto
+  `schematic.export_svg` + CLI `--svg` per vedere lo schema.
