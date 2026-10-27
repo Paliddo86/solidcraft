@@ -39,6 +39,20 @@ pub fn show(app: &mut SolveApp, ctx: &egui::Context) {
         .map(|symbol| Symbol {
             reference: symbol.reference.clone(),
             value: symbol.value.clone(),
+            primitives: solidcraft_ecad::symbol_primitives(&symbol.kind)
+                .into_iter()
+                .map(|primitive| match primitive {
+                    solidcraft_ecad::Primitive::Polyline { points, width, closed, filled } => solidcraft_ecad::Primitive::Polyline {
+                        points: points.into_iter().map(|p| symbol.point_world(p)).collect(),
+                        width,
+                        closed,
+                        filled,
+                    },
+                    solidcraft_ecad::Primitive::Circle { center, radius, width, filled } => {
+                        solidcraft_ecad::Primitive::Circle { center: symbol.point_world(center), radius, width, filled }
+                    }
+                })
+                .collect(),
             pins: symbol.pins.iter().map(|pin| (symbol.pin_world(pin), pin.number.clone())).collect(),
         })
         .collect();
@@ -70,12 +84,35 @@ pub fn show(app: &mut SolveApp, ctx: &egui::Context) {
                 if !min_x.is_finite() {
                     continue;
                 }
-                let pad = 3.0;
-                let a = to_screen([min_x - pad, max_y + pad]);
-                let b = to_screen([max_x + pad, min_y - pad]);
-                let box_rect = Rect::from_min_max(a.min(b), a.max(b));
-                painter.rect_filled(box_rect, 3.0, Color32::from_rgb(244, 231, 197));
-                painter.rect_stroke(box_rect, 3.0, Stroke::new(1.0, Color32::from_rgb(138, 109, 26)), StrokeKind::Inside);
+                let pad = 2.0;
+                for primitive in &symbol.primitives {
+                    match primitive {
+                        solidcraft_ecad::Primitive::Polyline { points, width, closed, filled } => {
+                            let pts: Vec<Pos2> = points.iter().map(|p| to_screen(*p)).collect();
+                            if pts.len() >= 2 {
+                                let stroke = Stroke::new((*width as f32 * scale).max(1.0), Color32::from_rgb(34, 34, 34));
+                                if *filled {
+                                    painter.add(egui::Shape::convex_polygon(pts, Color32::from_rgb(34, 34, 34), Stroke::NONE));
+                                } else {
+                                    let mut pts = pts;
+                                    if *closed && let Some(first) = pts.first().copied() {
+                                        pts.push(first);
+                                    }
+                                    painter.add(egui::Shape::line(pts, stroke));
+                                }
+                            }
+                        }
+                        solidcraft_ecad::Primitive::Circle { center, radius, width, filled } => {
+                            let c = to_screen(*center);
+                            let r = (*radius as f32 * scale).max(0.5);
+                            if *filled {
+                                painter.circle_filled(c, r, Color32::from_rgb(34, 34, 34));
+                            } else {
+                                painter.circle_stroke(c, r, Stroke::new((*width as f32 * scale).max(1.0), Color32::from_rgb(34, 34, 34)));
+                            }
+                        }
+                    }
+                }
                 painter.text(
                     egui::pos2(box_rect.center().x, box_rect.top() - 2.0),
                     Align2::CENTER_BOTTOM,
@@ -94,8 +131,8 @@ pub fn show(app: &mut SolveApp, ctx: &egui::Context) {
                 }
                 for (p, number) in &symbol.pins {
                     let c = to_screen(*p);
-                    painter.circle_filled(c, 2.0, Color32::from_rgb(184, 134, 11));
-                    painter.text(c + egui::vec2(3.0, -3.0), Align2::LEFT_BOTTOM, number.as_str(), FontId::proportional(8.0), Color32::from_gray(60));
+                    painter.circle_filled(c, 1.6, Color32::from_rgb(184, 134, 11));
+                    painter.text(c + egui::vec2(3.0, -3.0), Align2::LEFT_BOTTOM, number.as_str(), FontId::proportional(7.0), Color32::from_gray(60));
                 }
             }
             for (net, at) in &labels {
@@ -117,5 +154,6 @@ pub fn show(app: &mut SolveApp, ctx: &egui::Context) {
 struct Symbol {
     reference: String,
     value: String,
+    primitives: Vec<solidcraft_ecad::Primitive>,
     pins: Vec<([f64; 2], String)>,
 }

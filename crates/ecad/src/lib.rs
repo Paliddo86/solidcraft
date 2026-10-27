@@ -217,6 +217,118 @@ pub fn symbol_def(kind: &str) -> Option<&'static SymbolDef> {
     SYMBOLS.iter().find(|d| d.kind == kind)
 }
 
+/// One drawing primitive of a symbol, in the symbol's own frame (millimetres).
+#[derive(Clone, Debug, PartialEq)]
+pub enum Primitive {
+    /// A line or polyline. `closed` joins the last point to the first; `filled` fills it.
+    Polyline {
+        points: Vec<[f64; 2]>,
+        width: f64,
+        closed: bool,
+        filled: bool,
+    },
+    Circle {
+        center: [f64; 2],
+        radius: f64,
+        width: f64,
+        filled: bool,
+    },
+}
+
+/// The standard drawing of `kind`, in its own frame: the body between the library symbol's pins.
+pub fn symbol_primitives(kind: &str) -> Vec<Primitive> {
+    let mut out = Vec::new();
+    let line = |out: &mut Vec<Primitive>, from: [f64; 2], to: [f64; 2]| {
+        out.push(Primitive::Polyline { points: vec![from, to], width: 0.25, closed: false, filled: false });
+    };
+    let rect = |out: &mut Vec<Primitive>, x0: f64, y0: f64, x1: f64, y1: f64| {
+        out.push(Primitive::Polyline { points: vec![[x0, y0], [x1, y0], [x1, y1], [x0, y1]], width: 0.25, closed: true, filled: false });
+    };
+    match kind {
+        "resistor" => {
+            rect(&mut out, -2.0, -0.8, 2.0, 0.8);
+            line(&mut out, [-3.81, 0.0], [-2.0, 0.0]);
+            line(&mut out, [2.0, 0.0], [3.81, 0.0]);
+        }
+        "capacitor" => {
+            line(&mut out, [-0.6, -1.5], [-0.6, 1.5]);
+            line(&mut out, [0.6, -1.5], [0.6, 1.5]);
+            line(&mut out, [-2.54, 0.0], [-0.6, 0.0]);
+            line(&mut out, [0.6, 0.0], [2.54, 0.0]);
+        }
+        "inductor" => {
+            for center in [-2.25, -0.75, 0.75, 2.25] {
+                let mut points = Vec::with_capacity(13);
+                for i in 0..=12 {
+                    let a = std::f64::consts::PI * (i as f64) / 12.0;
+                    points.push([center + 0.75 * a.cos(), 0.75 * a.sin()]);
+                }
+                out.push(Primitive::Polyline { points, width: 0.25, closed: false, filled: false });
+            }
+            line(&mut out, [-3.81, 0.0], [-3.0, 0.0]);
+            line(&mut out, [3.0, 0.0], [3.81, 0.0]);
+        }
+        "diode" => {
+            out.push(Primitive::Polyline { points: vec![[-1.0, -1.0], [1.0, 0.0], [-1.0, 1.0]], width: 0.25, closed: true, filled: true });
+            line(&mut out, [1.0, -1.0], [1.0, 1.0]);
+            line(&mut out, [-2.54, 0.0], [-1.0, 0.0]);
+            line(&mut out, [1.0, 0.0], [2.54, 0.0]);
+        }
+        "led" => {
+            out.push(Primitive::Polyline { points: vec![[-1.0, -1.0], [1.0, 0.0], [-1.0, 1.0]], width: 0.25, closed: true, filled: true });
+            line(&mut out, [1.0, -1.0], [1.0, 1.0]);
+            line(&mut out, [-2.54, 0.0], [-1.0, 0.0]);
+            line(&mut out, [1.0, 0.0], [2.54, 0.0]);
+            for (dx, dy) in [(0.8, 1.2), (1.6, 0.6)] {
+                let base = [1.0 + dx, dy];
+                let tip = [base[0] + 0.8, base[1] + 0.8];
+                line(&mut out, base, tip);
+                line(&mut out, tip, [tip[0] - 0.6, tip[1]]);
+                line(&mut out, tip, [tip[0], tip[1] - 0.6]);
+            }
+        }
+        "ic8" => {
+            rect(&mut out, -3.81, -2.54, 3.81, 2.54);
+            for x in [-3.81, -1.27, 1.27, 3.81] {
+                line(&mut out, [x, 2.54], [x, 3.81]);
+                line(&mut out, [x, -2.54], [x, -3.81]);
+            }
+            out.push(Primitive::Circle { center: [-3.0, 1.9], radius: 0.2, width: 0.1, filled: true });
+        }
+        "ground" => {
+            line(&mut out, [0.0, 0.0], [0.0, -1.0]);
+            line(&mut out, [-1.0, -1.0], [1.0, -1.0]);
+            line(&mut out, [-0.6, -1.6], [0.6, -1.6]);
+            line(&mut out, [-0.2, -2.2], [0.2, -2.2]);
+        }
+        "vcc" => {
+            line(&mut out, [0.0, 0.0], [0.0, 1.0]);
+            out.push(Primitive::Polyline { points: vec![[0.0, 1.8], [-0.5, 1.0], [0.5, 1.0]], width: 0.2, closed: true, filled: true });
+        }
+        "connector2" => {
+            rect(&mut out, -1.5, -1.0, 1.5, 1.0);
+            line(&mut out, [-2.54, 0.0], [-1.5, 0.0]);
+            line(&mut out, [1.5, 0.0], [2.54, 0.0]);
+            out.push(Primitive::Circle { center: [-0.75, 0.0], radius: 0.25, width: 0.1, filled: true });
+            out.push(Primitive::Circle { center: [0.75, 0.0], radius: 0.25, width: 0.1, filled: true });
+        }
+        _ => {
+            if let Some(def) = symbol_def(kind) {
+                let (mut min_x, mut min_y) = (f64::INFINITY, f64::INFINITY);
+                let (mut max_x, mut max_y) = (f64::NEG_INFINITY, f64::NEG_INFINITY);
+                for p in def.pins {
+                    min_x = min_x.min(p.x);
+                    min_y = min_y.min(p.y);
+                    max_x = max_x.max(p.x);
+                    max_y = max_y.max(p.y);
+                }
+                rect(&mut out, min_x - 1.0, min_y - 1.0, max_x + 1.0, max_y + 1.0);
+            }
+        }
+    }
+    out
+}
+
 /// A finite point inside the coordinate range.
 fn finite(p: [f64; 2]) -> bool {
     p[0].is_finite() && p[1].is_finite() && p[0].abs() <= MAX_COORD_MM && p[1].abs() <= MAX_COORD_MM
@@ -230,8 +342,13 @@ fn finite_size(x: f64) -> bool {
 impl Symbol {
     /// `pin`'s point on the sheet: the symbol's rotation turns its own frame, then `at` places it.
     pub fn pin_world(&self, pin: &Pin) -> [f64; 2] {
+        self.point_world(pin.offset)
+    }
+
+    /// `p`'s point on the sheet: the symbol's rotation turns its own frame, then `at` places it.
+    pub fn point_world(&self, p: [f64; 2]) -> [f64; 2] {
         let (sin, cos) = self.rotation_deg.to_radians().sin_cos();
-        let [x, y] = pin.offset;
+        let [x, y] = p;
         [self.at[0] + x * cos - y * sin, self.at[1] + x * sin + y * cos]
     }
 }
@@ -479,26 +596,47 @@ impl Schematic {
         }
         for symbol in &self.symbols {
             let world: Vec<[f64; 2]> = symbol.pins.iter().map(|p| symbol.pin_world(p)).collect();
-            let (mut min_x, mut min_y) = (f64::INFINITY, f64::INFINITY);
-            let (mut max_x, mut max_y) = (f64::NEG_INFINITY, f64::NEG_INFINITY);
+            let (mut min_y, mut max_y) = (f64::INFINITY, f64::NEG_INFINITY);
             for p in &world {
-                min_x = min_x.min(p[0]);
                 min_y = min_y.min(p[1]);
-                max_x = max_x.max(p[0]);
                 max_y = max_y.max(p[1]);
             }
-            if !min_x.is_finite() {
-                min_x = symbol.at[0];
-                max_x = symbol.at[0];
+            if !min_y.is_finite() {
                 min_y = symbol.at[1];
                 max_y = symbol.at[1];
             }
-            let pad = 3.0;
-            let (bx, by) = (x(min_x - pad), y(max_y + pad));
-            let (bw, bh) = ((max_x - min_x + 2.0 * pad) * SCALE, (max_y - min_y + 2.0 * pad) * SCALE);
-            svg.push_str(&format!(
-                "<rect x=\"{bx:.2}\" y=\"{by:.2}\" width=\"{bw:.2}\" height=\"{bh:.2}\" rx=\"3\" fill=\"#f4e7c5\" stroke=\"#8a6d1a\" stroke-width=\"1.2\"/>\n"
-            ));
+            let pad = 2.0;
+            for primitive in symbol_primitives(&symbol.kind) {
+                match primitive {
+                    Primitive::Polyline { points, width, closed, filled } => {
+                        let pts: Vec<String> = points
+                            .iter()
+                            .map(|p| {
+                                let w = symbol.point_world(*p);
+                                format!("{:.2},{:.2}", x(w[0]), y(w[1]))
+                            })
+                            .collect();
+                        let tag = if closed { "polygon" } else { "polyline" };
+                        let fill = if filled { "#222222" } else { "none" };
+                        svg.push_str(&format!(
+                            "<{tag} points=\"{}\" fill=\"{fill}\" stroke=\"#222222\" stroke-width=\"{:.2}\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n",
+                            pts.join(" "),
+                            (width * SCALE).max(1.0)
+                        ));
+                    }
+                    Primitive::Circle { center, radius, width, filled } => {
+                        let c = symbol.point_world(center);
+                        let fill = if filled { "#222222" } else { "none" };
+                        svg.push_str(&format!(
+                            "<circle cx=\"{:.2}\" cy=\"{:.2}\" r=\"{:.2}\" fill=\"{fill}\" stroke=\"#222222\" stroke-width=\"{:.2}\"/>\n",
+                            x(c[0]),
+                            y(c[1]),
+                            radius * SCALE,
+                            (width * SCALE).max(1.0)
+                        ));
+                    }
+                }
+            }
             svg.push_str(&format!(
                 "<text x=\"{:.2}\" y=\"{:.2}\" font-family=\"sans-serif\" font-size=\"12\" fill=\"#222\">{}</text>\n",
                 x(symbol.at[0]),
@@ -514,7 +652,7 @@ impl Schematic {
                 ));
             }
             for p in &world {
-                svg.push_str(&format!("<circle cx=\"{:.2}\" cy=\"{:.2}\" r=\"2.2\" fill=\"#b8860b\"/>\n", x(p[0]), y(p[1])));
+                svg.push_str(&format!("<circle cx=\"{:.2}\" cy=\"{:.2}\" r=\"1.6\" fill=\"#b8860b\"/>\n", x(p[0]), y(p[1])));
             }
         }
         for label in &self.labels {
