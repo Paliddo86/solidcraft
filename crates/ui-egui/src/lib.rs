@@ -101,6 +101,7 @@ mod look_at_tests;
 mod manage_dialogs_tests;
 mod material_card_review;
 mod material_editor;
+pub mod schematic_panel;
 
 #[cfg(test)]
 mod measurement_ui_tests;
@@ -416,6 +417,9 @@ pub struct SolveApp {
     pub kicad_import: Option<kicad_import_dialog::Dialog>,
     /// The Bill of Materials window, when open.
     pub bom: Option<bom_panel::BomPanel>,
+    /// The Schematic window, when open, and the schematic's `next_id` it was closed for.
+    pub schematic_panel: Option<schematic_panel::Panel>,
+    pub schematic_panel_closed_for: Option<u64>,
     material_card_review: Option<material_card_review::ReviewWindow>,
     /// Context menus, rename box and Properties window.
     pub menu: context_menu::MenuState,
@@ -606,6 +610,8 @@ impl SolveApp {
             design_properties: None,
             kicad_import: None,
             bom: None,
+            schematic_panel: None,
+            schematic_panel_closed_for: None,
             material_card_review: None,
             menu: context_menu::MenuState::default(),
             gesture: mouse_gesture::State::default(),
@@ -2063,6 +2069,8 @@ impl SolveApp {
         self.resolve_fit(ui.ctx());
         params_dialog::show(self, ui.ctx());
         design_properties::show(self, ui.ctx());
+        schematic_panel::open_if_any(self);
+        schematic_panel::show(self, ui.ctx());
         bom_panel::show(self, ui.ctx());
         material_card_review::show(self, ui.ctx());
         recovery_ui::show(self, ui.ctx());

@@ -115,6 +115,8 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
 - [ ] 6.2 Co-design enclosure↔board: keep-in/keep-out, clearance.
 
 ## Fase 7 — UI workspace
+- [x] 7.0 Finestra **Schematic** read-only nell'app (egui painter, si apre da
+       sola quando esiste uno schema; `crates/ui-egui/src/schematic_panel.rs`).
 - [ ] 7.1 Tab "Electronics" con `ui_kit::Container`, theme tokens.
 - [ ] 7.2 Canvas 2D board/schematic via `navigation::handle` (orbit off).
 - [ ] 7.3 Pannelli/toolbar via `app.run(id, params)` / `app.start(id)`.
@@ -136,3 +138,7 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
 - 2026-10-26 — **Fase 0 completata**: `docs/ecad-research.md` (ricerca clean-room)
   e `tools/kicad-oracle/` (KiCad come programma esterno). Aggiunto
   `schematic.export_svg` + CLI `--svg` per vedere lo schema.
+- 2026-10-27 — App desktop compilata (12m32s + 3m54s) e avviata; aggiunta la
+  finestra **Schematic** read-only (egui painter, `schematic_panel.rs`), che si
+  apre da sola quando esiste uno schema. Screenshot dell'app con lo schema
+  "Power Supply" verificato.
