@@ -278,11 +278,24 @@ pub(crate) fn dropdown(ui: &mut Ui, id: &str, selected: &mut usize, options: &[&
 /// Dropdown with caller-supplied kit choices/actions, including disabled entries and stable
 /// application handles. Tokens: dropdown tokens. Use `dropdown` for a simple indexed list.
 pub(crate) fn dropdown_menu(ui: &mut Ui, id: impl egui::AsIdSalt, current: &str, add: impl FnOnce(&mut Ui)) -> Response {
+    dropdown_menu_with_close_behavior(ui, id, current, egui::PopupCloseBehavior::CloseOnClick, add)
+}
+
+/// Dropdown with explicit dismissal behavior. For editable content use `CloseOnClickOutside`
+/// and close the popup when a choice is accepted.
+pub(crate) fn dropdown_menu_with_close_behavior(
+    ui: &mut Ui,
+    id: impl egui::AsIdSalt,
+    current: &str,
+    close_behavior: egui::PopupCloseBehavior,
+    add: impl FnOnce(&mut Ui),
+) -> Response {
     let response = egui::ComboBox::from_id_salt(id)
         .width(dimension(ui.available_width()))
         .height(Tokens::get().space_24 * 14.0)
         .selected_text(current)
         .icon(dropdown_arrow)
+        .close_behavior(close_behavior)
         .show_ui(ui, add)
         .response;
     publish(ui, &response, egui::WidgetType::ComboBox);
@@ -483,7 +496,10 @@ pub(crate) fn slider<T: egui::emath::Numeric>(ui: &mut Ui, value: &mut T, range:
         let slider = egui::Rect::from_min_size(response.rect.min, vec2(ui.spacing().slider_width, response.rect.height()));
         let mut background = ui.painter().clone();
         background.set_opacity(if ui.is_visible() { 1.0 } else { 0.0 });
-        background.rect_filled(slider, 0.0, t.dialog_body);
+        // At the top of the range egui's own handle reaches `slider.right()` exactly, and a fill
+        // that stops there leaves its last column showing beside the editor (#5708). The gap
+        // before the editor is `item_spacing.x`, so a pixel past the edge covers nothing else.
+        background.rect_filled(slider.with_max_x(slider.right() + 1.0), 0.0, t.dialog_body);
         // Match egui's native input range (handle_radius = thickness / 2.5), so the
         // painted thumb stays under the pointer even at the two ends of the range.
         let input_radius = ui.text_style_height(&egui::TextStyle::Body).max(ui.spacing().interact_size.y) / 2.5;
@@ -638,7 +654,9 @@ fn length_drag<'a>(value: &'a mut f64, units: &str, decimals: u8) -> egui::DragV
 /// keyboard to the next widget.
 pub(crate) fn canvas_value_field(ui: &mut Ui, id: egui::Id, value: &mut String, keep_tab: bool) -> Response {
     let t = Tokens::get();
-    let mut edit = egui::TextEdit::singleline(value).id(id).desired_width(t.space_24 * 3.0).background_color(t.input_fill());
+    let width = grown_width(ui, value, &egui::TextStyle::Body.resolve(ui.style()), t.space_24 * 3.0);
+    // At least that wide: in an area the space left is last frame's width, which can't grow.
+    let mut edit = egui::TextEdit::singleline(value).id(id).desired_width(width).min_size(vec2(width, 0.0)).background_color(t.input_fill());
     if keep_tab {
         edit = edit.event_filter(egui::EventFilter { tab: true, horizontal_arrows: true, ..Default::default() });
     }
@@ -649,6 +667,14 @@ pub(crate) fn canvas_value_field(ui: &mut Ui, id: egui::Id, value: &mut String, 
     response
 }
 
+/// How wide a value field on the canvas is: `base` for a number, as wide as an expression typed
+/// into it (parameter names, a formula), up to three times `base`.
+fn grown_width(ui: &Ui, value: &str, font: &egui::FontId, base: f32) -> f32 {
+    let text = ui.fonts_mut(|fonts| fonts.layout_no_wrap(value.to_owned(), font.clone(), egui::Color32::PLACEHOLDER).size().x);
+    // Room for the cursor after the last character.
+    (text + Tokens::get().space_6).clamp(base, base * 3.0)
+}
+
 /// Placement editor whose owner routes Enter and Tab (including rejected expressions).
 /// Completion remains with the caller. Tokens: cell_editor tokens.
 pub(crate) fn placement_field(ui: &mut Ui, id: egui::Id, value: &mut String, hint: &str) -> Response {
@@ -657,11 +683,12 @@ pub(crate) fn placement_field(ui: &mut Ui, id: egui::Id, value: &mut String, hin
     // Canvas editors must retain their native hit target: enlarging it intercepts nearby
     // sketch picks. Keep the former line + space_2 above/below, with shared galley alignment.
     let height = ui.fonts_mut(|fonts| fonts.row_height(&font)) + ui.spacing().extra_text_line_spacing + t.space_4;
+    let width = grown_width(ui, value, &font, t.control_height * 3.0 - t.space_6);
     let response = ui.add(
         text_input(egui::TextEdit::singleline(value))
             .id(id)
-            .min_size(vec2(0.0, height))
-            .desired_width(t.control_height * 3.0 - t.space_6)
+            .min_size(vec2(width, height))
+            .desired_width(width)
             .return_key(None)
             .event_filter(egui::EventFilter { tab: true, horizontal_arrows: true, vertical_arrows: true, ..Default::default() })
             .font(font)

@@ -632,7 +632,7 @@ fn suppress(s: &mut Session, p: &Value) -> Result<Value> {
     let doc = s.doc_mut();
     for (id, made) in &keep {
         if let Some(f) = doc.feature_mut(*id) {
-            f.body_names.clone_from(made);
+            f.pin_body_names(made);
         }
     }
     for id in &ids {
@@ -952,6 +952,42 @@ fn command_profiles(set: &Value, cmd: &str) -> Result<Value> {
 /// the name and suppression, which timeline.rename and timeline.suppress change.
 const NOT_EDITABLE: &[&str] = &["id", "type", "name", "suppressed", "param_names", "edge_refs", "edge_names", "face_names"];
 
+/// timeline.edit keeps accepting names for pattern and mirror seeds and for construction planes
+/// (#1134): each name in the merged definition resolves to the feature's id, refused when it
+/// finds no feature, as the commands that take names refuse it.
+fn resolve_feature_names(v: &mut Value, doc: &solidcraft_doc::Document, cmd: &str) -> Result<()> {
+    match v {
+        Value::Object(o) => {
+            if o.get("type").and_then(Value::as_str) == Some("construction") {
+                // Only a construction plane's name becomes an id: a revolve axis with the same
+                // shape names a construction axis, which is still keyed by name.
+                if let Some(name) = o.get("name").and_then(Value::as_str)
+                    && let Some(f) = doc.find_feature(name).filter(|f| matches!(f.kind, FeatureKind::ConstructionPlane { .. }))
+                {
+                    o.remove("name");
+                    o.insert("feature".into(), json!(f.id));
+                }
+                return Ok(());
+            }
+            for (_, x) in o.iter_mut() {
+                resolve_feature_names(x, doc, cmd)?;
+            }
+            if let Some(Value::Array(seeds)) = o.get_mut("features") {
+                for s in seeds.iter_mut() {
+                    if let Value::String(name) = s {
+                        let name = name.clone();
+                        let id = doc.seed_feature(&name).ok_or_else(|| bad(cmd, format!("no feature `{name}`")))?;
+                        *s = json!(id.id);
+                    }
+                }
+            }
+            Ok(())
+        }
+        Value::Array(a) => a.iter_mut().try_for_each(|x| resolve_feature_names(x, doc, cmd)),
+        _ => Ok(()),
+    }
+}
+
 /// Large payloads that timeline.edit cannot change, left out of a feature's definition: (field,
 /// what it holds).
 fn heavy_fields(kind: &FeatureKind) -> &'static [(&'static str, &'static str)] {
@@ -1009,6 +1045,7 @@ fn edit_feature(s: &mut Session, p: &Value) -> Result<Value> {
     let set = &numbers_as_expressions(command_profiles(&set, cmd)?, &before);
     let mut v = before.clone();
     merge(&mut v, set, 0);
+    resolve_feature_names(&mut v, &s.doc, cmd)?;
     let mut nf: Feature = serde_json::from_value(v.clone()).map_err(|e| bad(cmd, format!("invalid feature: {e}")))?;
     nf.id = f.id;
     if let (FeatureKind::Extrude { extent: old, .. }, FeatureKind::Extrude { extent: new, .. }) = (&f.kind, &mut nf.kind)
@@ -1070,7 +1107,7 @@ fn edit_feature(s: &mut Session, p: &Value) -> Result<Value> {
     }
     // Profiles picked by index or point are kept by their curves, as when the feature was made.
     if nf.kind.clone().profile_sels_mut() != f.kind.clone().profile_sels_mut() {
-        super::features::stable_profiles(s, &mut nf.kind)?;
+        super::features::stable_profiles(s, &mut nf.kind, false)?;
     }
     // New face points: their faces' names now.
     if nf.kind.face_points() != f.kind.face_points() {
@@ -1403,6 +1440,11 @@ fn redefine(s: &mut Session, p: &Value) -> Result<Value> {
     // Run the constructor on a scratch session: failed edits must not disturb sketch mode,
     // selections, component authoring state or the original feature's definition.
     let mut trial = s.scratch();
+    // What the trial computes is kept for the session's own evaluation at the end: the cache may
+    // hold only the last few states of a large design, which would be computed twice.
+    let kept = s.model.kept();
+    let shared = kept.clone().unwrap_or_default();
+    trial.model.keep(Some(shared.clone()));
     trial.active_component = old.component;
     if let FeatureKind::Emboss { face: Some(face), .. } = &old.kind {
         trial.active_occurrence_path = (!face.author_path.is_empty()).then(|| face.author_path.clone());
@@ -1436,7 +1478,7 @@ fn redefine(s: &mut Session, p: &Value) -> Result<Value> {
     }
     // The trial still holds the old feature, so a plane offset from its own name was made there,
     // and once swapped in it would be built on itself (#3567).
-    if new.kind.names_feature(&old.name) {
+    if new.kind.names_feature(old.id, &old.name) {
         return Err(bad(cmd, format!("{} can't be built on itself: pick another plane or face", old.name)));
     }
     // Optional inputs can move other inputs' positions (e.g. Distance 2 goes before Taper).
@@ -1512,7 +1554,9 @@ fn redefine(s: &mut Session, p: &Value) -> Result<Value> {
     }
     s.pending_moves = trial.pending_moves;
     s.doc = trial.doc;
+    s.model.keep(Some(shared));
     s.refresh();
+    s.model.keep(kept);
     if let Some(e) = s.model.result(id).and_then(|r| r.error.clone()) {
         return Err(EngineError::Other(e));
     }

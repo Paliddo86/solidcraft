@@ -85,6 +85,10 @@ pub enum WgpuError {
     #[error(transparent)]
     RequestDeviceError(#[from] wgpu::RequestDeviceError),
 
+    /// SolidCraft: pipeline validation must return to the startup retry.
+    #[error("Could not create the egui renderer: {0}")]
+    CreateRendererError(wgpu::Error),
+
     #[error(transparent)]
     CreateSurfaceError(#[from] wgpu::CreateSurfaceError),
 
@@ -414,7 +418,25 @@ impl RenderState {
             ..options
         };
         startup_step(STEP_RENDERER, ""); // SolidCraft
+        // SolidCraft: capture errors on the real surface/device, including driver shader
+        // compilation failures, before wgpu's default uncaptured-error handler can panic.
+        // Await every scope (also on WebGPU); an invalid renderer is never handed to eframe.
+        let scopes = [
+            wgpu::ErrorFilter::OutOfMemory,
+            wgpu::ErrorFilter::Internal,
+            wgpu::ErrorFilter::Validation,
+        ]
+        .map(|filter| device.push_error_scope(filter));
         let renderer = Renderer::new(&device, target_format, options);
+        let mut failed = None;
+        for scope in scopes.into_iter().rev() {
+            if let Some(error) = scope.pop().await {
+                failed.get_or_insert(error);
+            }
+        }
+        if let Some(error) = failed {
+            return Err(WgpuError::CreateRendererError(error));
+        }
 
         // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
         // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.
@@ -545,6 +567,13 @@ impl Default for WgpuConfiguration {
                     // App is hidden (minimized / behind another window). Skip silently.
                     log::trace!("Skipping frame due to occlusion.");
                     SurfaceErrorAction::SkipFrame
+                }
+                wgpu::CurrentSurfaceTexture::Validation => {
+                    // SolidCraft: the acquire's error was captured; most often the surface has
+                    // no configuration ("Surface is not configured for presentation", #7007).
+                    // Skipping alone would meet the same error on every frame after.
+                    log::debug!("Dropped frame with error: {status:?}");
+                    SurfaceErrorAction::Reconfigure
                 }
                 _ => {
                     log::warn!("Dropped frame with error: {status:?}");
@@ -806,6 +835,50 @@ pub fn capture_errors<T>(device: &wgpu::Device, f: impl FnOnce() -> T) -> (T, Op
         }
     }
     (value, failed)
+}
+
+/// SolidCraft: why a surface configure ([`configure_captured`]) left the surface without its
+/// configuration.
+#[derive(Debug)]
+pub enum ConfigureError {
+    /// The device refused it, with this error (#1935).
+    Refused(wgpu::Error),
+    /// The device was lost (#7007).
+    DeviceLost,
+    /// The adapter doesn't support the surface.
+    Unsupported,
+}
+
+impl std::fmt::Display for ConfigureError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Refused(error) => error.fmt(f),
+            Self::DeviceLost => f.write_str("the graphics device was lost"),
+            Self::Unsupported => f.write_str("the surface isn't supported by this adapter"),
+        }
+    }
+}
+
+/// SolidCraft: run a surface configure on `device` under [`capture_errors`], and say whether the
+/// surface has its configuration. A configure that meets a lost device reports nothing: wgpu
+/// passes device-loss errors to no error scope and no handler, only to the lost callback. On
+/// D3D12 a driver reset is found that way, when the configure waits for the present queue, after
+/// wgpu has dropped the surface's old configuration. Taken as configured, the surface's next
+/// acquire failed with "Surface is not configured for presentation", and the device's default
+/// error handler panicked (#7007). `lost` is the device's [`DeviceLost`], marked by then.
+pub fn configure_captured(
+    device: &wgpu::Device,
+    lost: &DeviceLost,
+    configure: impl FnOnce(),
+) -> Result<(), ConfigureError> {
+    let ((), failed) = capture_errors(device, configure);
+    if let Some(error) = failed {
+        return Err(ConfigureError::Refused(error));
+    }
+    if lost.is_lost() {
+        return Err(ConfigureError::DeviceLost);
+    }
+    Ok(())
 }
 
 /// SolidCraft: refused configures in a row after which the surface is recreated (#1935).

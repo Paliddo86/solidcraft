@@ -76,6 +76,7 @@ pub(crate) fn icon_of(k: &FeatureKind) -> &'static str {
         FeatureKind::Cylinder { .. } => "cylinder",
         FeatureKind::Sphere { .. } => "sphere",
         FeatureKind::Torus { .. } => "torus",
+        FeatureKind::Cone { .. } => "cone",
         FeatureKind::Combine { .. } => "combine",
         FeatureKind::Pattern { pattern: solidcraft_engine::doc::PatternKind::Rectangular { .. }, .. } => "pattern_rect",
         FeatureKind::Pattern { pattern: solidcraft_engine::doc::PatternKind::Path { .. }, .. } => "pattern_path",
@@ -343,6 +344,19 @@ fn select_range(app: &mut SolveApp, order: &[u64], id: u64, add: bool) {
     let _ = app.run("select.set", json!({ "items": items, "add": add }));
 }
 
+/// Give a History feature click to a compatible active dialog input in any layout.
+/// Plain clicks keep an existing pick; Ctrl/Command clicks toggle it off.
+pub(crate) fn pick_feature_into_dialog(app: &mut SolveApp, id: u64, modifiers: egui::Modifiers) -> bool {
+    let Some(d) = app.dialog.as_mut().filter(|d| d.active_input().is_some_and(|i| i.accept & crate::selection::FEATURES != 0)) else {
+        return false;
+    };
+    let feature = solidcraft_engine::Sel::Feature { id };
+    if modifiers.command || modifiers.ctrl || !d.active_input().is_some_and(|i| i.items.contains(&feature)) {
+        d.pick(&app.session, feature);
+    }
+    true
+}
+
 /// A plain click on a feature: select it alone.
 fn select_one(app: &mut SolveApp, id: u64) {
     app.tree.picked_joints.clear();
@@ -529,6 +543,7 @@ fn timeline_contents(app: &mut SolveApp, ui: &mut egui::Ui, floating: bool) {
                     suppressed: *suppressed,
                     error: err.is_some(),
                     warning: warn.is_some(),
+                    reference: false,
                     // A dragged feature takes the colour of its drop bar.
                     accent: if drag == Some(Drag::Feature(*id)) { crate::theme::TabAccent::for_tab(&t, "SKETCH") } else { accent },
                 }
@@ -546,29 +561,14 @@ fn timeline_contents(app: &mut SolveApp, ui: &mut egui::Ui, floating: bool) {
                     drag = Some(Drag::Feature(*id));
                 }
                 let resp = resp.on_hover_text(tip);
-                if resp.clicked() {
-                    // A dialog input that takes features (pattern objects) gets the click.
-                    let takes = app.dialog.as_ref().and_then(|d| d.active_input()).is_some_and(|i| i.accept & crate::selection::FEATURES != 0);
-                    if takes {
-                        // A click adds the feature and keeps one already picked (it shows as
-                        // selected); Ctrl+click takes it out, as Ctrl+click toggles outside a dialog.
-                        let toggle = ui.input(|i| i.modifiers.command || i.modifiers.ctrl);
-                        if let Some(mut d) = app.dialog.take() {
-                            let feature = solidcraft_engine::Sel::Feature { id: *id };
-                            if toggle || !d.active_input().is_some_and(|i| i.items.contains(&feature)) {
-                                d.pick(&app.session, feature);
-                            }
-                            app.dialog = Some(d);
-                        }
+                if resp.clicked() && !pick_feature_into_dialog(app, *id, ui.input(|i| i.modifiers)) {
+                    let modifiers = ui.input(|i| i.modifiers);
+                    if modifiers.shift {
+                        select_range(app, &order, *id, modifiers.command || modifiers.ctrl);
+                    } else if modifiers.command || modifiers.ctrl {
+                        toggle_feature(app, *id);
                     } else {
-                        let modifiers = ui.input(|i| i.modifiers);
-                        if modifiers.shift {
-                            select_range(app, &order, *id, modifiers.command || modifiers.ctrl);
-                        } else if modifiers.command || modifiers.ctrl {
-                            toggle_feature(app, *id);
-                        } else {
-                            select_one(app, *id);
-                        }
+                        select_one(app, *id);
                     }
                 }
                 if resp.double_clicked() {
@@ -1000,7 +1000,7 @@ mod tests {
             h.step(&json!({"widget": "Paste"})).unwrap();
             assert_eq!(h.app.session.doc.features.len(), 4, "left: {left}");
             let bodies: Vec<String> = h.app.session.model.state().bodies.iter().map(|b| b.name.clone()).collect();
-            assert_eq!(bodies, ["One", "Two", "One (copy)", "Two (copy)"], "left: {left}");
+            assert_eq!(bodies, ["One", "Two", "One (2)", "Two (2)"], "left: {left}");
         }
     }
 
