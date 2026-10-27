@@ -402,6 +402,9 @@ pub struct Session {
     /// The schematic document of its own (`schematic.*`): symbols, wires and net labels,
     /// separate from the 3D design and saved as a `.solidcraft-sch` file.
     pub schematic: Option<solidcraft_ecad::Schematic>,
+    /// The board document of its own (`pcb.*`): footprints, tracks, vias and zones, separate from
+    /// the design and the schematic and saved as a `.solidcraft-pcb` file.
+    pub pcb: Option<solidcraft_ecad::Pcb>,
     /// Section Analysis: a view cut by a plane (origin, unit normal; the normal side is hidden).
     pub section: Option<(Vec3, Vec3)>,
     /// Whether the section's cut faces are hatched (`inspect.section`'s `hatch`; on by default).
@@ -584,6 +587,7 @@ impl Session {
             clipboard: Vec::new(),
             sketch_clipboard: None,
             schematic: None,
+            pcb: None,
             section: None,
             section_hatch: true,
             colored_components: None,
@@ -1359,6 +1363,7 @@ impl Session {
             clipboard: self.clipboard.clone(),
             sketch_clipboard: self.sketch_clipboard.clone(),
             schematic: self.schematic.clone(),
+            pcb: self.pcb.clone(),
             section: None,
             section_hatch: true,
             colored_components: None,

@@ -61,6 +61,7 @@ mod mesh;
 mod metadata;
 pub(crate) mod motion;
 mod parts;
+mod pcb;
 mod schematic;
 mod script;
 mod section;
@@ -299,6 +300,7 @@ pub fn command_specs() -> Vec<&'static CommandSpec> {
     v.extend(motion::COMMANDS.iter());
     v.extend(config::COMMANDS.iter());
     v.extend(parts::COMMANDS.iter());
+    v.extend(pcb::COMMANDS.iter());
     v.extend(bom::COMMANDS.iter());
     v.extend(browser::COMMANDS.iter());
     v.extend(delete::COMMANDS.iter());

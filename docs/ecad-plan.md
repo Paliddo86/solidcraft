@@ -83,18 +83,19 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
 ## Fase 2 — Modello dati ECAD nativo + crate
 - [x] 2.0 Creare `crates/solidcraft-ecad` (L3) con il modello **schematico**
        (`Symbol`, `Pin`, `Wire`, `Label`, `Net`, libreria simboli) e la netlist.
-- [ ] 2.1 Modello **board** (board/stackup/layer/track/pad/via/footprint/net/zone)
-       nello stesso crate, distinto dall'import MCAD.
+- [x] 2.1 Modello **board** (board/stackup/layer/track/pad/via/footprint/net/zone)
+       nello stesso crate, distinto dall'import MCAD (`crates/ecad/src/pcb.rs`).
 - [x] 2.2 Vincoli di sicurezza: `get()` non `[i]`, check finite, cap su loop,
        `validate()` sul file letto.
 - [x] 2.3 Test unitari del modello (5 test in `solidcraft-ecad`).
 
 ## Fase 3 — Board authoring MVP (core workspace PCB)
-- [ ] 3.1 `pcb.create` (documento board) + outline da sketch/dimensioni.
-- [ ] 3.2 Stackup: layer rame/core/prepreg, drill, thickness.
-- [ ] 3.3 Footprint/pad parametrici (SMD, THT) e libreria componenti.
-- [ ] 3.4 Vias, tracks (routing), copper pours/zones, silkscreen text.
-- [ ] 3.5 Nets e connettività (netlist, ratsnest/airwires).
+- [x] 3.1 `pcb.create` (documento board) + outline da dimensioni.
+- [x] 3.2 Stackup: layer rame/silk/mechanical + spessore (prepreg/dielettrico: dopo).
+- [x] 3.3 Footprint/pad (SMD, THT) e libreria componenti (r_0603, c_0603,
+       led_0603, ic8_dip, header_2, mounting_hole).
+- [x] 3.4 Vias, tracks (routing), copper zones (testo silkscreen: ancora da fare).
+- [x] 3.5 Nets e riepilogo connettività (ratsnest/airwires: dopo).
 - [ ] 3.6 DRC: clearance, larghezza traccia, drill, annular ring.
 
 ## Fase 4 — Schematic capture
@@ -117,6 +118,8 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
 ## Fase 7 — UI workspace
 - [x] 7.0 Finestra **Schematic** read-only nell'app (egui painter, si apre da
        sola quando esiste uno schema; `crates/ui-egui/src/schematic_panel.rs`).
+- [x] 7.4 Finestra **PCB** read-only nell'app (outline, zone, track, pad, via;
+       `crates/ui-egui/src/pcb_panel.rs`).
 - [ ] 7.1 Tab "Electronics" con `ui_kit::Container`, theme tokens.
 - [ ] 7.2 Canvas 2D board/schematic via `navigation::handle` (orbit off).
 - [ ] 7.3 Pannelli/toolbar via `app.run(id, params)` / `app.start(id)`.
@@ -142,3 +145,9 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
   finestra **Schematic** read-only (egui painter, `schematic_panel.rs`), che si
   apre da sola quando esiste uno schema. Screenshot dell'app con lo schema
   "Power Supply" verificato.
+- 2026-10-27 — Allineato a `upstream/main` (191 commit, merge `a11a16c3`).
+- 2026-10-27 — **Fase 2.1 + Fase 3 MVP**: modello board in
+  `crates/ecad/src/pcb.rs` (footprint/pad, track, via, zone, layer, net) e
+  comandi `pcb.*`; CLI `pcb` con `--svg`; finestra **PCB** nella UI. Test
+  **10/10** (ecad) e **4/4** (engine). Demo "Power Supply": 8 footprint,
+  7 track, 3 via, 1 zone, net VIN/FILTER/OUT/GND/VCC.

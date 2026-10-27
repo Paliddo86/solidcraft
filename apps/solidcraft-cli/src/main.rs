@@ -61,6 +61,8 @@ const USAGE_RUN: &str = "  solidcraft-cli run <script.json|design.solidcraft|par
 const USAGE_EVAL: &str = "  solidcraft-cli eval <script.json|design.solidcraft|part.step> [--in design.solidcraft|part.step] [--json-out FILE]     (alias: inspect)\n  solidcraft-cli eval --in <script.json|design.solidcraft|part.step> [--json-out FILE]\n      (with both inputs, runs the positional script on --in before measuring; does not automatically save the modified design)\n      (--json-out FILE writes the JSON that run (with --results, else the measurement) and eval print to FILE instead of stdout,\n       as plain UTF-8: a shell's > can re-encode it, e.g. Windows PowerShell adds a byte-order mark)\n";
 /// `schematic`'s lines in the usage.
 const USAGE_SCHEMATIC: &str = "  solidcraft-cli schematic <script.json> [--in design.solidcraft] [--svg FILE] [--json-out FILE]\n      (runs the script's schematic commands on a fresh session and prints the schematic:\n       symbols, wires, labels and the netlist; --in starts from a design; --svg writes a picture)\n";
+/// `pcb`'s lines in the usage.
+const USAGE_PCB: &str = "  solidcraft-cli pcb <script.json> [--in design.solidcraft] [--svg FILE] [--json-out FILE]\n      (runs the script's pcb commands on a fresh session and prints the board:\n       footprints, tracks, vias, zones and nets; --in starts from a design; --svg writes a picture)\n";
 /// `script`'s lines in the usage.
 const USAGE_SCRIPT: &str = "  solidcraft-cli script <design.solidcraft|script.json> [--out script.json]\n      (the design's history as a command script that eval and run replay)\n";
 /// `bench-open`'s lines in the usage.
@@ -109,6 +111,7 @@ const COMMANDS: &[Command] = &[
     Command { name: "eval", usage: USAGE_EVAL, listed: true },
     Command { name: "inspect", usage: USAGE_EVAL, listed: false },
     Command { name: "schematic", usage: USAGE_SCHEMATIC, listed: true },
+    Command { name: "pcb", usage: USAGE_PCB, listed: true },
     Command { name: "script", usage: USAGE_SCRIPT, listed: true },
     Command { name: "bench-open", usage: USAGE_BENCH_OPEN, listed: true },
     Command { name: "bench-agent", usage: USAGE_BENCH_AGENT, listed: true },
@@ -145,6 +148,7 @@ fn main() -> ExitCode {
         Some("run") => cmd_run(&args[1..]),
         Some("eval" | "inspect") => cmd_eval(&args[1..]),
         Some("schematic") => cmd_schematic(&args[1..]),
+        Some("pcb") => cmd_pcb(&args[1..]),
         Some("script") => cmd_script(&args[1..]),
         Some("snapshot") => cmd_snapshot(&args[1..]),
         Some("render") => render::run(&args[1..]),
@@ -417,6 +421,31 @@ fn cmd_schematic(args: &[String]) -> Result<(), String> {
     if let Some(out) = flag(args, "--svg") {
         s.execute("schematic.export_svg", &json!({"path": out})).map_err(|e| e.to_string())?;
         eprintln!("{out}: schematic SVG");
+    }
+    print_json(&info, json_out)
+}
+
+/// `pcb`: run a board script and print the board (footprints, tracks, vias, zones, nets).
+fn cmd_pcb(args: &[String]) -> Result<(), String> {
+    let json_out = json_out(args)?;
+    known_args("pcb", args, &["--in", "--json-out", "--svg"], &[], true)?;
+    let base = flag(args, "--in");
+    let path = positional(args);
+    if path.is_none() && base.is_none() {
+        return Err(usage());
+    }
+    let mut s = match base {
+        Some(b) => load(b)?,
+        None => Session::default(),
+    };
+    if let Some(p) = path {
+        let v = read_json(p)?;
+        s.run_script(&v).map_err(|e| e.to_string())?;
+    }
+    let info = s.execute("pcb.info", &json!({})).map_err(|e| e.to_string())?;
+    if let Some(out) = flag(args, "--svg") {
+        s.execute("pcb.export_svg", &json!({"path": out})).map_err(|e| e.to_string())?;
+        eprintln!("{out}: pcb SVG");
     }
     print_json(&info, json_out)
 }

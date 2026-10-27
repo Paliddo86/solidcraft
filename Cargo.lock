@@ -4284,7 +4284,7 @@ dependencies = [
 
 [[package]]
 name = "solidcraft-ecad"
-version = "0.23.1"
+version = "0.24.1"
 dependencies = [
  "serde",
  "serde_json",
