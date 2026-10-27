@@ -9,6 +9,8 @@ use crate::{Result, Session};
 
 const CREATE: &str = "schematic.create";
 const PLACE: &str = "schematic.symbol.place";
+const MOVE_SYMBOL: &str = "schematic.symbol.move";
+const DELETE_SYMBOL: &str = "schematic.symbol.delete";
 const WIRE: &str = "schematic.wire";
 const LABEL: &str = "schematic.label";
 const INFO: &str = "schematic.info";
@@ -22,6 +24,12 @@ pub static COMMANDS: &[CommandSpec] = &[
     ),
     CommandSpec::new(PLACE, "Place Symbol", place).noundo().doc_only().params(
         "kind: resistor | capacitor | inductor | diode | led | ic8 | ground | vcc | connector2; at: [x, y] in mm; reference?: the reference (default R1, C1, U1… by kind); value?: its value; rotation?: degrees → id, reference, kind, at, pins [{number, name, at}]",
+    ),
+    CommandSpec::new(MOVE_SYMBOL, "Move Symbol", move_symbol).noundo().doc_only().params(
+        "id: the symbol's id; at: its new point [x, y] in mm → id, at",
+    ),
+    CommandSpec::new(DELETE_SYMBOL, "Delete Symbol", delete_symbol).noundo().doc_only().params(
+        "id: the symbol's id → id",
     ),
     CommandSpec::new(WIRE, "Wire", wire).noundo().doc_only().params(
         "points: [[x, y], …] (at least two, in mm); net?: a name for this wire → id, points",
@@ -82,6 +90,21 @@ fn place(s: &mut Session, p: &Value) -> Result<Value> {
     let symbol = sch.symbols.iter().find(|x| x.id == id).ok_or_else(|| bad(PLACE, "the symbol was not placed"))?;
     let pins: Vec<Value> = symbol.pins.iter().map(|pin| json!({"number": pin.number, "name": pin.name, "at": symbol.pin_world(pin)})).collect();
     Ok(json!({"id": id, "reference": reference, "kind": symbol.kind, "at": symbol.at, "pins": pins}))
+}
+
+fn move_symbol(s: &mut Session, p: &Value) -> Result<Value> {
+    let id = p.get("id").and_then(Value::as_u64).ok_or_else(|| bad(MOVE_SYMBOL, "`id` is the symbol's id"))?;
+    let at = point(p, "at").ok_or_else(|| bad(MOVE_SYMBOL, "`at` must be a point [x, y] in millimetres"))?;
+    let sch = s.schematic.as_mut().ok_or_else(|| bad(MOVE_SYMBOL, "no schematic yet: run schematic.create first"))?;
+    sch.move_symbol(id, at).map_err(|why| bad(MOVE_SYMBOL, why))?;
+    Ok(json!({"id": id, "at": at}))
+}
+
+fn delete_symbol(s: &mut Session, p: &Value) -> Result<Value> {
+    let id = p.get("id").and_then(Value::as_u64).ok_or_else(|| bad(DELETE_SYMBOL, "`id` is the symbol's id"))?;
+    let sch = s.schematic.as_mut().ok_or_else(|| bad(DELETE_SYMBOL, "no schematic yet: run schematic.create first"))?;
+    sch.delete_symbol(id).map_err(|why| bad(DELETE_SYMBOL, why))?;
+    Ok(json!({"id": id}))
 }
 
 fn wire(s: &mut Session, p: &Value) -> Result<Value> {
@@ -254,5 +277,18 @@ mod tests {
         let text = std::fs::read_to_string(&path).unwrap();
         assert!(text.starts_with("<svg"), "{text}");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_symbol_moves_and_is_deleted() {
+        let mut s = Session::default();
+        run(&mut s, CREATE, json!({}));
+        let r = run(&mut s, PLACE, json!({"kind": "resistor", "at": [50, 50]}));
+        let id = r["id"].as_u64().unwrap();
+        run(&mut s, MOVE_SYMBOL, json!({"id": id, "at": [60, 40]}));
+        let info = run(&mut s, INFO, json!({}));
+        assert_eq!(info["symbols"][0]["at"], json!([60.0, 40.0]));
+        run(&mut s, DELETE_SYMBOL, json!({"id": id}));
+        assert_eq!(run(&mut s, INFO, json!({}))["symbols"].as_array().unwrap().len(), 0);
     }
 }

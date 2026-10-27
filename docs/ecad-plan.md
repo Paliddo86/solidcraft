@@ -1,6 +1,6 @@
 # SolidCraft — Piano ECAD (PCB / Electronics)
 
-> Stato: **Fase 4 (schematic capture) MVP completata** · Prossimo passo: Fase 2/3 (modello board) · Ultimo aggiornamento: 2026-10-26
+> Stato: **Fase 7 (UI workspace) MVP: toolbar + editing completati** · Prossimo passo: pan/zoom via `navigation::handle`, DRC e ratsnest · Ultimo aggiornamento: 2026-10-26
 > Base: branch `ecad` allineato a `upstream/main` (1cd14e24); PR #5092 portato con merge.
 
 Scopo: integrare un workspace di progettazione elettronica stile Fusion360
@@ -127,10 +127,15 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
        central panel con tab **Schematic/PCB** e i due canvas
        (`crates/ui-egui/src/electronics_workspace.rs`); il selettore passa tra
        Design/Render/Electronics e il canale di controllo accetta `electronics`.
-- [ ] 7.6 Ribbon/toolbar elettronici dedicati (`schematic.*`/`pcb.*`) e
-       pan/zoom del canvas via `navigation::handle`.
-- [ ] 7.7 Editing nella UI: selezione, trascinamento dei simboli/footprint,
-       routing delle tracce; poi DRC e ratsnest nel workspace.
+- [x] 7.6a Toolbar **Electronics** dedicata nel workspace: tool Select, palette
+       simboli (Resistor, Capacitor, IC, Ground, VCC, Connector) e footprint
+       (R 0603, C 0603, DIP-8, Header, Hole), Wire/Net Label/Track/Via/Copper
+       Zone, Finish e Delete; ogni pulsante esegue i comandi `schematic.*`/`pcb.*`.
+- [ ] 7.6b Pan/zoom del canvas via `navigation::handle` (orbit off).
+- [x] 7.7a Editing nella UI: click-to-place, selezione (hit test), trascinamento
+       di simboli/footprint (`*.symbol.move`/`*.footprint.move`), routing di
+       wire/track a più punti, label, via, zona rettangolare, delete.
+- [ ] 7.7b DRC e ratsnest nel workspace.
 - [ ] 7.1 Tab "Electronics" con `ui_kit::Container`, theme tokens.
 - [ ] 7.2 Canvas 2D board/schematic via `navigation::handle` (orbit off).
 - [ ] 7.3 Pannelli/toolbar via `app.run(id, params)` / `app.start(id)`.
@@ -167,3 +172,19 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
 - 2026-10-27 — Workspace **Electronics** integrato come Design/Render:
   selettore, central panel con tab Schematic/PCB, canvas. Priorità aggiornata:
   prima la grafica della sezione Electronics, poi DRC/ratsnest/editing.
+- 2026-10-27 — **Fase 7.6a + 7.7a completate**: toolbar Electronics (Seleziona,
+  palette simboli/footprint, Filo/Etichetta/Traccia/Via/Zona, Termina/Elimina)
+  ed editing nel canvas: piazzamento, selezione, trascinamento, routing,
+  label, via, zona, delete. Nuovi comandi `schematic.symbol.move/delete` e
+  `pcb.footprint.move/delete`. Test: ecad **10/10**, engine schematic **6/6**,
+  pcb **5/5**. Layout corretto sotto il ribbon e a destra del browser.
+  Localizzazione **italiana** di tutte le nuove stringhe (toolbar, comandi,
+  workspace, dialogo import KiCad) via `assets/locales/pending/`.
+  La card del workspace mostra **Elettronica**. Screenshot:
+  `/tmp/solidcraft-ecad-demo/app-editing-final.png` (R2 piazzato via
+  toolbar+canvas e trascinato), `app-editing-it.png` (schematico) e
+  `app-editing-it-pcb.png` (PCB). i18n: **92/93** test; l'unico rimasto
+  confronta i cataloghi completi e si risolve col fold dei pending su main
+  (`cargo xtask fold-pending`); `cargo xtask lists` passa.
+- 2026-10-27 — Prossimo passo: pan/zoom via `navigation::handle`, DRC e
+  ratsnest; poi sincronizzazione schematico↔PCB (4.3).

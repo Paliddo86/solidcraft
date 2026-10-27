@@ -9,6 +9,8 @@ use crate::{Result, Session};
 
 const CREATE: &str = "pcb.create";
 const PLACE: &str = "pcb.footprint.place";
+const MOVE_FOOTPRINT: &str = "pcb.footprint.move";
+const DELETE_FOOTPRINT: &str = "pcb.footprint.delete";
 const PAD_NET: &str = "pcb.pad.net";
 const TRACK: &str = "pcb.track";
 const VIA: &str = "pcb.via";
@@ -24,6 +26,12 @@ pub static COMMANDS: &[CommandSpec] = &[
     ),
     CommandSpec::new(PLACE, "Place Footprint", place).noundo().doc_only().params(
         "kind: r_0603 | c_0603 | led_0603 | ic8_dip | header_2 | mounting_hole; at: [x, y] in mm; reference?: default R1, C1, U1… by kind; value?; rotation?: degrees; layer?: F.Cu | B.Cu → id, reference, kind, at, pads [{number, at, size, shape, drill_mm}]",
+    ),
+    CommandSpec::new(MOVE_FOOTPRINT, "Move Footprint", move_footprint).noundo().doc_only().params(
+        "id: the footprint's id; at: its new point [x, y] in mm; rotation?: degrees → id, at",
+    ),
+    CommandSpec::new(DELETE_FOOTPRINT, "Delete Footprint", delete_footprint).noundo().doc_only().params(
+        "id: the footprint's id → id",
     ),
     CommandSpec::new(PAD_NET, "Pad Net", pad_net).noundo().doc_only().params(
         "reference: the footprint's reference; pad: the pad's number; net?: the net's name (none clears it) → reference, pad, net",
@@ -101,6 +109,25 @@ fn place(s: &mut Session, p: &Value) -> Result<Value> {
         .map(|pad| json!({"number": pad.number, "at": f.pad_world(pad), "size": pad.size, "shape": pad.shape, "drill_mm": pad.drill_mm}))
         .collect();
     Ok(json!({"id": id, "reference": reference, "kind": f.kind, "at": f.at, "pads": pads}))
+}
+
+fn move_footprint(s: &mut Session, p: &Value) -> Result<Value> {
+    let id = p.get("id").and_then(Value::as_u64).ok_or_else(|| bad(MOVE_FOOTPRINT, "`id` is the footprint's id"))?;
+    let at = point(p, "at").ok_or_else(|| bad(MOVE_FOOTPRINT, "`at` must be a point [x, y] in millimetres"))?;
+    let rotation = match p.get("rotation") {
+        None | Some(Value::Null) => None,
+        Some(_) => Some(num(p, "rotation").ok_or_else(|| bad(MOVE_FOOTPRINT, "`rotation` must be a finite number of degrees"))?),
+    };
+    let board = s.pcb.as_mut().ok_or_else(|| bad(MOVE_FOOTPRINT, "no board yet: run pcb.create first"))?;
+    board.move_footprint(id, at, rotation).map_err(|why| bad(MOVE_FOOTPRINT, why))?;
+    Ok(json!({"id": id, "at": at}))
+}
+
+fn delete_footprint(s: &mut Session, p: &Value) -> Result<Value> {
+    let id = p.get("id").and_then(Value::as_u64).ok_or_else(|| bad(DELETE_FOOTPRINT, "`id` is the footprint's id"))?;
+    let board = s.pcb.as_mut().ok_or_else(|| bad(DELETE_FOOTPRINT, "no board yet: run pcb.create first"))?;
+    board.delete_footprint(id).map_err(|why| bad(DELETE_FOOTPRINT, why))?;
+    Ok(json!({"id": id}))
 }
 
 fn pad_net(s: &mut Session, p: &Value) -> Result<Value> {
@@ -296,5 +323,19 @@ mod tests {
         assert!(text.starts_with("<svg"), "{text}");
         assert!(text.contains("J1"));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_footprint_moves_and_is_deleted() {
+        let mut s = Session::default();
+        run(&mut s, CREATE, json!({}));
+        let r = run(&mut s, PLACE, json!({"kind": "r_0603", "at": [20, 20]}));
+        let id = r["id"].as_u64().unwrap();
+        run(&mut s, MOVE_FOOTPRINT, json!({"id": id, "at": [30, 30], "rotation": 90}));
+        let info = run(&mut s, INFO, json!({}));
+        assert_eq!(info["footprints"][0]["at"], json!([30.0, 30.0]));
+        assert_eq!(info["footprints"][0]["rotation_deg"], json!(90.0));
+        run(&mut s, DELETE_FOOTPRINT, json!({"id": id}));
+        assert_eq!(run(&mut s, INFO, json!({}))["footprints"].as_array().unwrap().len(), 0);
     }
 }

@@ -1,0 +1,26 @@
+{
+  "en": {
+    "kicad.open_pcb": "Open KiCad PCB",
+    "Open": "Open",
+    "Cancel": "Cancel",
+    "kicad.options": "Import options",
+    "kicad.components": "Include components",
+    "kicad.copper": "Copper (traces, vias, zones, pads)",
+    "kicad.silkscreen": "Include silkscreen",
+    "kicad.colour": "Board colour",
+    "kicad.thickness": "Board thickness",
+    "kicad.importing": "Importing KiCad board"
+  },
+  "it": {
+    "kicad.open_pcb": "Apri PCB KiCad",
+    "Open": "Apri",
+    "Cancel": "Annulla",
+    "kicad.options": "Opzioni di importazione",
+    "kicad.components": "Includi componenti",
+    "kicad.copper": "Rame (tracce, via, zone, pad)",
+    "kicad.silkscreen": "Includi serigrafia",
+    "kicad.colour": "Colore scheda",
+    "kicad.thickness": "Spessore scheda",
+    "kicad.importing": "Importazione scheda KiCad"
+  }
+}

@@ -454,6 +454,26 @@ impl Schematic {
         self.labels.push(Label { id, net: net.to_string(), at });
         Ok(id)
     }
+
+    /// Move a symbol to `at` (its pins follow; wires stay where they are).
+    pub fn move_symbol(&mut self, id: u64, at: [f64; 2]) -> Result<(), String> {
+        if !finite(at) {
+            return Err("`at` must be a point [x, y] in millimetres".into());
+        }
+        let symbol = self.symbols.iter_mut().find(|s| s.id == id).ok_or_else(|| format!("no symbol with id {id}"))?;
+        symbol.at = at;
+        Ok(())
+    }
+
+    /// Delete a symbol.
+    pub fn delete_symbol(&mut self, id: u64) -> Result<(), String> {
+        let before = self.symbols.len();
+        self.symbols.retain(|s| s.id != id);
+        if self.symbols.len() == before {
+            return Err(format!("no symbol with id {id}"));
+        }
+        Ok(())
+    }
 }
 
 /// A point on the 0.001 mm grid, so points a design means to share do share.

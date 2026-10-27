@@ -424,6 +424,36 @@ impl Pcb {
     }
 }
 
+impl Pcb {
+    /// Move a footprint to `at`, optionally turning it.
+    pub fn move_footprint(&mut self, id: u64, at: [f64; 2], rotation_deg: Option<f64>) -> Result<(), String> {
+        if !finite(at) {
+            return Err("`at` must be a point [x, y] in millimetres".into());
+        }
+        if let Some(rotation) = rotation_deg
+            && (!rotation.is_finite() || rotation.abs() > 1.0e6)
+        {
+            return Err("`rotation` must be a finite number of degrees".into());
+        }
+        let footprint = self.footprints.iter_mut().find(|f| f.id == id).ok_or_else(|| format!("no footprint with id {id}"))?;
+        footprint.at = at;
+        if let Some(rotation) = rotation_deg {
+            footprint.rotation_deg = rotation;
+        }
+        Ok(())
+    }
+
+    /// Delete a footprint.
+    pub fn delete_footprint(&mut self, id: u64) -> Result<(), String> {
+        let before = self.footprints.len();
+        self.footprints.retain(|f| f.id != id);
+        if self.footprints.len() == before {
+            return Err(format!("no footprint with id {id}"));
+        }
+        Ok(())
+    }
+}
+
 /// A net's summary: the pads, tracks, vias and zones that name it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct NetSummary {
