@@ -62,7 +62,10 @@ pub fn active(app: &SolveApp) -> bool {
 pub fn enter(app: &mut SolveApp, open: bool) -> Result<(), String> {
     app.electronics.open = open;
     if open {
+        app.ui.tab = if app.electronics.tab == Tab::Pcb { "PCB".to_string() } else { "SCHEMATIC".to_string() };
         crate::render_workspace::enter(app, false)?;
+    } else if app.ui.tab == "SCHEMATIC" || app.ui.tab == "PCB" {
+        app.ui.tab = "MODEL".to_string();
     }
     Ok(())
 }
@@ -70,6 +73,11 @@ pub fn enter(app: &mut SolveApp, open: bool) -> Result<(), String> {
 /// The central panel while the Electronics workspace is active.
 pub fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
     let t = crate::theme::Tokens::get();
+    match app.ui.tab.as_str() {
+        "PCB" => app.electronics.tab = Tab::Pcb,
+        "SCHEMATIC" => app.electronics.tab = Tab::Schematic,
+        _ => app.ui.tab = if app.electronics.tab == Tab::Pcb { "PCB".to_string() } else { "SCHEMATIC".to_string() },
+    }
     let view = ui.max_rect();
     let top = app.shell.cards.iter().map(|r| r.bottom()).fold(view.top(), f32::max);
     let left = app.shell.browser.map_or(view.left(), |b| (b.right() + 8.0).max(view.left()));
@@ -111,8 +119,14 @@ pub fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
                     tool_button(app, ui, Tool::Zone, "Copper Zone");
                 }
             }
-            if !app.electronics.pending.is_empty() && ui.button(crate::i18n::tr_label("Finish")).clicked() {
-                finish(app);
+            if !app.electronics.pending.is_empty() {
+                let finish_label = match app.electronics.tab {
+                    Tab::Schematic => "Finish Wire",
+                    Tab::Pcb => "Finish Track",
+                };
+                if ui.button(crate::i18n::tr_label(finish_label)).clicked() {
+                    finish(app);
+                }
             }
             if app.electronics.selected.is_some() && ui.button(crate::i18n::tr_label("Delete")).clicked() {
                 delete_selected(app);
@@ -184,6 +198,7 @@ fn tab_button(app: &mut SolveApp, ui: &mut egui::Ui, rect: Rect, tab: Tab, label
     );
     if ui.interact(rect, egui::Id::new(label), egui::Sense::click()).clicked() {
         app.electronics.tab = tab;
+        app.ui.tab = if tab == Tab::Pcb { "PCB".to_string() } else { "SCHEMATIC".to_string() };
         app.electronics.tool = Tool::Select;
         app.electronics.pending.clear();
         app.electronics.selected = None;
@@ -328,6 +343,27 @@ fn world_at(app: &SolveApp, body: Rect, pos: Pos2) -> Option<[f64; 2]> {
         Tab::Schematic => app.session.schematic.as_ref().map(|sch| View::fit(body, sch.width_mm, sch.height_mm, 0.0).to_world(pos)),
         Tab::Pcb => app.session.pcb.as_ref().map(|board| View::fit(body, board.width_mm, board.height_mm, 14.0).to_world(pos)),
     }
+}
+
+/// Start an Electronics tool from the ribbon or the command palette, when the workspace is open.
+pub fn start_tool(app: &mut SolveApp, id: &str) -> bool {
+    if !active(app) {
+        return false;
+    }
+    match id {
+        "schematic.select" | "pcb.select" => app.electronics.tool = Tool::Select,
+        "schematic.delete" | "pcb.delete" => delete_selected(app),
+        "schematic.finish" | "pcb.finish" => finish(app),
+        "schematic.wire" => app.electronics.tool = Tool::Wire,
+        "schematic.label" => app.electronics.tool = Tool::Label,
+        "schematic.symbol.place" => app.electronics.tool = Tool::Symbol("resistor"),
+        "pcb.track" => app.electronics.tool = Tool::Track,
+        "pcb.via" => app.electronics.tool = Tool::Via,
+        "pcb.zone" => app.electronics.tool = Tool::Zone,
+        "pcb.footprint.place" => app.electronics.tool = Tool::Footprint("r_0603"),
+        _ => return false,
+    }
+    true
 }
 
 /// The screen/world transform shared by the drawing and the pointer.

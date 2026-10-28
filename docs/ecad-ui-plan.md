@@ -1,7 +1,7 @@
 # SolidCraft — Piano UI Electronics (ribbon + component manager)
 
-> Stato: **piano pronto, implementazione M1 in corso** · Ultimo aggiornamento: 2026-10-27
-> Branch `ecad`, allineato a `upstream/main` (v0.25.1, merge in corso) e con il PR KiCad #5092 già incluso.
+> Stato: **M1 (ribbon contestuale) completato** · Prossimo passo: M2 component manager · Ultimo aggiornamento: 2026-10-27
+> Branch `ecad`, allineato a `upstream/main` (v0.25.1, merge `7dc9b850`) e con il PR KiCad #5092 già incluso (`3b07c355`).
 
 Scopo: portare il workspace Electronics da "canvas con toolbar minima" a un
 ambiente di progettazione paragonabile a Fusion 360 Electronics: **ribbon

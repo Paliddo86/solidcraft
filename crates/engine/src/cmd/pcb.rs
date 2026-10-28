@@ -11,6 +11,9 @@ const CREATE: &str = "pcb.create";
 const PLACE: &str = "pcb.footprint.place";
 const MOVE_FOOTPRINT: &str = "pcb.footprint.move";
 const DELETE_FOOTPRINT: &str = "pcb.footprint.delete";
+const SELECT: &str = "pcb.select";
+const FINISH: &str = "pcb.finish";
+const DELETE_SELECTED: &str = "pcb.delete";
 const PAD_NET: &str = "pcb.pad.net";
 const TRACK: &str = "pcb.track";
 const VIA: &str = "pcb.via";
@@ -21,10 +24,13 @@ const OPEN: &str = "pcb.open";
 const SVG: &str = "pcb.export_svg";
 
 pub static COMMANDS: &[CommandSpec] = &[
-    CommandSpec::new(CREATE, "New PCB", create).noundo().doc_only().params(
+    CommandSpec::new(SELECT, "Select", ui_tool).noundo().doc_only().at("PCB", "DESIGN"),
+    CommandSpec::new(DELETE_SELECTED, "Delete", ui_tool).noundo().doc_only().at("PCB", "DESIGN"),
+    CommandSpec::new(FINISH, "Finish Track", ui_tool).noundo().doc_only().at("PCB", "ROUTE"),
+    CommandSpec::new(CREATE, "New PCB", create).noundo().doc_only().at("PCB", "FILE").params(
         "name?: the board's name (default \"PCB\"); width_mm?, height_mm?: the outline in millimetres (default 80 × 50); thickness_mm?: the substrate (default 1.6) → name, width_mm, height_mm, thickness_mm",
     ),
-    CommandSpec::new(PLACE, "Place Footprint", place).noundo().doc_only().params(
+    CommandSpec::new(PLACE, "Place Footprint", place).noundo().doc_only().at("PCB", "PLACE").params(
         "kind: r_0603 | c_0603 | led_0603 | ic8_dip | header_2 | mounting_hole; at: [x, y] in mm; reference?: default R1, C1, U1… by kind; value?; rotation?: degrees; layer?: F.Cu | B.Cu → id, reference, kind, at, pads [{number, at, size, shape, drill_mm}]",
     ),
     CommandSpec::new(MOVE_FOOTPRINT, "Move Footprint", move_footprint).noundo().doc_only().params(
@@ -36,16 +42,16 @@ pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new(PAD_NET, "Pad Net", pad_net).noundo().doc_only().params(
         "reference: the footprint's reference; pad: the pad's number; net?: the net's name (none clears it) → reference, pad, net",
     ),
-    CommandSpec::new(TRACK, "Track", track).noundo().doc_only().params(
+    CommandSpec::new(TRACK, "Track", track).noundo().doc_only().at("PCB", "ROUTE").params(
         "points: [[x, y], …] (at least two, in mm); width_mm?: 0.01 to 100 (default 0.25); layer?: F.Cu | B.Cu; net? → id, points, width_mm, layer",
     ),
-    CommandSpec::new(VIA, "Via", via).noundo().doc_only().params(
+    CommandSpec::new(VIA, "Via", via).noundo().doc_only().at("PCB", "PLACE").params(
         "at: [x, y] in mm; drill_mm?: 0.05 to 10 (default 0.4); size_mm?: at least the drill (default twice it); from?, to?: layers (default F.Cu → B.Cu); net? → id, at, drill_mm, size_mm",
     ),
-    CommandSpec::new(ZONE, "Copper Zone", zone).noundo().doc_only().params(
+    CommandSpec::new(ZONE, "Copper Zone", zone).noundo().doc_only().at("PCB", "BOARD").params(
         "points: a closed polygon of at least three [x, y] points (do not repeat the first); layer?: F.Cu | B.Cu; net? → id, points, layer, net",
     ),
-    CommandSpec::new(INFO, "PCB", info).noundo().doc_only().params(
+    CommandSpec::new(INFO, "PCB", info).noundo().doc_only().at("PCB", "INSPECT").params(
         "→ exists, name, width_mm, height_mm, thickness_mm, layers, footprints, tracks, vias, zones, nets [{name, pads, tracks, vias, zones}]",
     ),
     CommandSpec::new(SAVE, "Save PCB", save).noundo().doc_only().params(
@@ -58,6 +64,11 @@ pub static COMMANDS: &[CommandSpec] = &[
         "path: write the board as an SVG picture (outline, zones, tracks, pads, vias) → path, bytes",
     ),
 ];
+
+/// UI-only: the Electronics workspace starts the matching tool; a script call is a no-op.
+fn ui_tool(_s: &mut Session, _p: &Value) -> Result<Value> {
+    Ok(json!({}))
+}
 
 fn create(s: &mut Session, p: &Value) -> Result<Value> {
     let name = str_(p, "name").unwrap_or("PCB").trim();

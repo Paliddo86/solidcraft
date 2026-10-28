@@ -11,6 +11,9 @@ const CREATE: &str = "schematic.create";
 const PLACE: &str = "schematic.symbol.place";
 const MOVE_SYMBOL: &str = "schematic.symbol.move";
 const DELETE_SYMBOL: &str = "schematic.symbol.delete";
+const SELECT: &str = "schematic.select";
+const FINISH: &str = "schematic.finish";
+const DELETE_SELECTED: &str = "schematic.delete";
 const WIRE: &str = "schematic.wire";
 const LABEL: &str = "schematic.label";
 const INFO: &str = "schematic.info";
@@ -19,10 +22,13 @@ const OPEN: &str = "schematic.open";
 const SVG: &str = "schematic.export_svg";
 
 pub static COMMANDS: &[CommandSpec] = &[
-    CommandSpec::new(CREATE, "New Schematic", create).noundo().doc_only().params(
+    CommandSpec::new(SELECT, "Select", ui_tool).noundo().doc_only().at("SCHEMATIC", "DESIGN"),
+    CommandSpec::new(DELETE_SELECTED, "Delete", ui_tool).noundo().doc_only().at("SCHEMATIC", "DESIGN"),
+    CommandSpec::new(FINISH, "Finish Wire", ui_tool).noundo().doc_only().at("SCHEMATIC", "CONNECT"),
+    CommandSpec::new(CREATE, "New Schematic", create).noundo().doc_only().at("SCHEMATIC", "FILE").params(
         "name?: the sheet's name (default \"Schematic\"); width_mm?, height_mm?: the sheet's size in millimetres (default A4 landscape, 297 × 210) → name, width_mm, height_mm",
     ),
-    CommandSpec::new(PLACE, "Place Symbol", place).noundo().doc_only().params(
+    CommandSpec::new(PLACE, "Place Symbol", place).noundo().doc_only().at("SCHEMATIC", "PLACE").params(
         "kind: resistor | capacitor | inductor | diode | led | ic8 | ground | vcc | connector2; at: [x, y] in mm; reference?: the reference (default R1, C1, U1… by kind); value?: its value; rotation?: degrees → id, reference, kind, at, pins [{number, name, at}]",
     ),
     CommandSpec::new(MOVE_SYMBOL, "Move Symbol", move_symbol).noundo().doc_only().params(
@@ -31,13 +37,13 @@ pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new(DELETE_SYMBOL, "Delete Symbol", delete_symbol).noundo().doc_only().params(
         "id: the symbol's id → id",
     ),
-    CommandSpec::new(WIRE, "Wire", wire).noundo().doc_only().params(
+    CommandSpec::new(WIRE, "Wire", wire).noundo().doc_only().at("SCHEMATIC", "CONNECT").params(
         "points: [[x, y], …] (at least two, in mm); net?: a name for this wire → id, points",
     ),
-    CommandSpec::new(LABEL, "Net Label", label).noundo().doc_only().params(
+    CommandSpec::new(LABEL, "Net Label", label).noundo().doc_only().at("SCHEMATIC", "PLACE").params(
         "net: the net's name (1 to 128 characters); at: [x, y] in mm → id, net, at",
     ),
-    CommandSpec::new(INFO, "Schematic", info).noundo().doc_only().params(
+    CommandSpec::new(INFO, "Schematic", info).noundo().doc_only().at("SCHEMATIC", "INSPECT").params(
         "→ exists, name, width_mm, height_mm, symbols, wires, labels, nets [{name, pins: [{symbol, reference, pin, name}]}]",
     ),
     CommandSpec::new(SAVE, "Save Schematic", save).noundo().doc_only().params(
@@ -50,6 +56,11 @@ pub static COMMANDS: &[CommandSpec] = &[
         "path: write the schematic as an SVG picture (a quick look at it) → path, bytes",
     ),
 ];
+
+/// UI-only: the Electronics workspace starts the matching tool; a script call is a no-op.
+fn ui_tool(_s: &mut Session, _p: &Value) -> Result<Value> {
+    Ok(json!({}))
+}
 
 fn create(s: &mut Session, p: &Value) -> Result<Value> {
     let name = str_(p, "name").unwrap_or("Schematic").trim();

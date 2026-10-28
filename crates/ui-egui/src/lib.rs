@@ -1279,6 +1279,9 @@ impl SolveApp {
         if render_workspace::start_interactive(self, id) {
             return;
         }
+        if electronics_workspace::start_tool(self, id) {
+            return;
+        }
         workspace::select_command_tab(self, id);
         // One selected placement moves as a component, the same way as its Browser menu,
         // retaining the exact instance path and the grounding/rigid-group restrictions.

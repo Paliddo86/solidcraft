@@ -1,6 +1,6 @@
 # SolidCraft — Piano ECAD (PCB / Electronics)
 
-> Stato: **Fase 7 (UI workspace) MVP: toolbar + editing completati** · Prossimo passo: pan/zoom via `navigation::handle`, DRC e ratsnest · Ultimo aggiornamento: 2026-10-26
+> Stato: **Fase 8 M1 (ribbon Electronics) completata** · Prossimo passo: M2 component manager (libreria/Place/Replace) · Ultimo aggiornamento: 2026-10-27
 > Base: branch `ecad` allineato a `upstream/main` (1cd14e24); PR #5092 portato con merge.
 
 Scopo: integrare un workspace di progettazione elettronica stile Fusion360
@@ -140,6 +140,19 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
 - [ ] 7.2 Canvas 2D board/schematic via `navigation::handle` (orbit off).
 - [ ] 7.3 Pannelli/toolbar via `app.run(id, params)` / `app.start(id)`.
 
+## Fase 8 — UI Fusion-like e component manager
+
+Piano dettagliato: `docs/ecad-ui-plan.md`.
+
+- [x] 8.1 Ribbon contestuale **SCHEMATIC/PCB**: tab e pannelli FILE / DESIGN /
+       PLACE / CONNECT / ROUTE / BOARD / INSPECT; comandi UI-only
+       (`schematic.select/delete/finish`, `pcb.select/delete/finish`);
+       sincronizzazione tab ribbon ↔ canvas; label en+it.
+- [ ] 8.2 **Component manager**: modello libreria (simboli, footprint, 3D),
+       Place/Replace, import KiCad/STEP.
+- [ ] 8.3 Editor simbolo/footprint/3D e board 3D con i modelli.
+- [ ] 8.4 DRC/ERC/ratsnest e design rules.
+
 ## Log
 - 2026-10-26 — Piano creato; repo allineato a upstream/main (1cd14e24); nessun
   lavoro iniziato.
@@ -188,3 +201,12 @@ La macchina di sviluppo può essere lenta: preferire questi percorsi.
   (`cargo xtask fold-pending`); `cargo xtask lists` passa.
 - 2026-10-27 — Prossimo passo: pan/zoom via `navigation::handle`, DRC e
   ratsnest; poi sincronizzazione schematico↔PCB (4.3).
+- 2026-10-27 — **Allineamento upstream/main v0.25.1** (merge `7dc9b850`):
+  conflitti risolti dando priorità a main (`.sc`, Render workspace) e
+  riapplicando KiCad/schematic/pcb/Elettronica. Il PR KiCad #5092 è già in HEAD
+  (`3b07c355`); nessun aggiornamento KiCad da fare. Build app **8m20s**.
+- 2026-10-27 — **Fase 8 M1**: ribbon contestuale **Schematico/PCB** con
+  pannelli FILE/PROGETTAZIONE/POSIZIONA/CONNETTI/ESAMINA e comandi UI-only; la
+  card del workspace mostra "Elettronica". Screenshot
+  `/tmp/solidcraft-ecad-demo/app-editing-it.png`. Piano UI/libreria in
+  `docs/ecad-ui-plan.md`; prossimo M2 (component manager).

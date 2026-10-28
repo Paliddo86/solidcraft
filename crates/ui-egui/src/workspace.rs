@@ -287,6 +287,18 @@ pub const SECTIONS: &[Section] = &[
     Section { tab: "WELDMENTS", panel: "SKETCH", promoted: 1, ids: &["sketch.create"] },
     Section { tab: "WELDMENTS", panel: "CREATE", promoted: 1, ids: &["frame.member"] },
     Section { tab: "WELDMENTS", panel: "CONFIGURE", promoted: 2, ids: CONFIGURE },
+    // Electronics: a context-sensitive ribbon, like Fusion's Schematic and PCB tabs.
+    Section { tab: "SCHEMATIC", panel: "FILE", promoted: 1, ids: &["schematic.create"] },
+    Section { tab: "SCHEMATIC", panel: "DESIGN", promoted: 2, ids: &["schematic.select", "schematic.delete"] },
+    Section { tab: "SCHEMATIC", panel: "PLACE", promoted: 2, ids: &["schematic.symbol.place", "schematic.label"] },
+    Section { tab: "SCHEMATIC", panel: "CONNECT", promoted: 2, ids: &["schematic.wire", "schematic.finish"] },
+    Section { tab: "SCHEMATIC", panel: "INSPECT", promoted: 1, ids: &["schematic.info"] },
+    Section { tab: "PCB", panel: "FILE", promoted: 1, ids: &["pcb.create"] },
+    Section { tab: "PCB", panel: "DESIGN", promoted: 2, ids: &["pcb.select", "pcb.delete"] },
+    Section { tab: "PCB", panel: "PLACE", promoted: 2, ids: &["pcb.footprint.place", "pcb.via"] },
+    Section { tab: "PCB", panel: "ROUTE", promoted: 2, ids: &["pcb.track", "pcb.finish"] },
+    Section { tab: "PCB", panel: "BOARD", promoted: 1, ids: &["pcb.zone"] },
+    Section { tab: "PCB", panel: "INSPECT", promoted: 1, ids: &["pcb.info"] },
 ];
 
 // Migration data only: Render commands remain registered, but have no live ribbon sections.
@@ -580,6 +592,9 @@ pub fn visible_tabs(app: &crate::SolveApp) -> Vec<&'static str> {
     if crate::render_workspace::active(app) {
         return Vec::new();
     }
+    if crate::electronics_workspace::active(app) {
+        return vec!["SCHEMATIC", "PCB"];
+    }
     let mut tabs = TABS.to_vec();
     if app.session.active_sketch.is_some() {
         tabs.push("SKETCH");
@@ -596,7 +611,7 @@ pub fn visible_tabs(app: &crate::SolveApp) -> Vec<&'static str> {
 /// other tabs to remain usable for the rest of that context. Sketch takes precedence over sheet
 /// metal, and sheet metal over weldments.
 pub fn sync_context(app: &mut crate::SolveApp) {
-    if crate::render_workspace::active(app) {
+    if crate::render_workspace::active(app) || crate::electronics_workspace::active(app) {
         return;
     }
     let context = app
