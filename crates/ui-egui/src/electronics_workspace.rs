@@ -23,6 +23,7 @@ pub enum Tool {
     Symbol(&'static str),
     Wire,
     Label,
+    Device,
     Footprint(&'static str),
     Track,
     Via,
@@ -38,6 +39,9 @@ pub struct State {
     pub pending: Vec<[f64; 2]>,
     pub label: String,
     pub status: String,
+    pub manager_open: bool,
+    pub manager_filter: String,
+    pub place_device: Option<String>,
 }
 
 impl Default for State {
@@ -50,6 +54,9 @@ impl Default for State {
             pending: Vec::new(),
             label: "NET".to_string(),
             status: String::new(),
+            manager_open: true,
+            manager_filter: String::new(),
+            place_device: None,
         }
     }
 }
@@ -181,6 +188,7 @@ pub fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
             t.text_dim,
         );
     }
+    manager_window(app, ui.ctx());
 }
 
 fn tab_button(app: &mut SolveApp, ui: &mut egui::Ui, rect: Rect, tab: Tab, label: &str) {
@@ -257,6 +265,7 @@ fn handle_click(app: &mut SolveApp, pos: Pos2, body: Rect) {
                     app.electronics.status = e;
                 }
             }
+            Tool::Device => place_device(app, world),
             _ => {}
         },
         Tab::Pcb => match app.electronics.tool {
@@ -280,6 +289,7 @@ fn handle_click(app: &mut SolveApp, pos: Pos2, body: Rect) {
                     }
                 }
             }
+            Tool::Device => place_device(app, world),
             _ => {}
         },
     }
@@ -300,6 +310,24 @@ fn place_footprint(app: &mut SolveApp, kind: &str, at: [f64; 2]) {
         Ok(v) => {
             app.electronics.selected = v.get("id").and_then(Value::as_u64);
             app.electronics.tool = Tool::Select;
+        }
+        Err(e) => app.electronics.status = e,
+    }
+}
+
+/// Place the device picked in the Component Manager: its symbol on the schematic, its footprint
+/// on the board.
+fn place_device(app: &mut SolveApp, at: [f64; 2]) {
+    let Some(device) = app.electronics.place_device.clone() else { return };
+    let command = match app.electronics.tab {
+        Tab::Schematic => "component.place",
+        Tab::Pcb => "pcb.component.place",
+    };
+    match app.run(command, json!({"device": device, "at": at})) {
+        Ok(v) => {
+            app.electronics.selected = v.get("id").and_then(Value::as_u64);
+            app.electronics.tool = Tool::Select;
+            app.electronics.place_device = None;
         }
         Err(e) => app.electronics.status = e,
     }
@@ -361,9 +389,63 @@ pub fn start_tool(app: &mut SolveApp, id: &str) -> bool {
         "pcb.via" => app.electronics.tool = Tool::Via,
         "pcb.zone" => app.electronics.tool = Tool::Zone,
         "pcb.footprint.place" => app.electronics.tool = Tool::Footprint("r_0603"),
+        "library.manager" => app.electronics.manager_open = !app.electronics.manager_open,
         _ => return false,
     }
     true
+}
+
+/// The Component Manager: the library's devices, with a search, their symbol/footprint/3D status
+/// and a Place button that arms the canvas.
+fn manager_window(app: &mut SolveApp, ctx: &egui::Context) {
+    if !app.electronics.manager_open {
+        return;
+    }
+    let t = crate::theme::Tokens::get();
+    let mut open = app.electronics.manager_open;
+    let mut place = None;
+    let mut filter = std::mem::take(&mut app.electronics.manager_filter);
+    egui::Window::new(crate::i18n::tr("library.manager")).open(&mut open).default_width(360.0).resizable(true).show(ctx, |ui| {
+        ui.add(egui::TextEdit::singleline(&mut filter).hint_text(crate::i18n::tr("library.search")).desired_width(ui.available_width()));
+        ui.add_space(t.space_6);
+        let needle = filter.trim().to_lowercase();
+        egui::ScrollArea::vertical().max_height(430.0).show(ui, |ui| {
+            let mut shown = 0;
+            for device in &app.session.library.devices {
+                if !needle.is_empty() && !format!("{} {} {}", device.id, device.name, device.category).to_lowercase().contains(&needle) {
+                    continue;
+                }
+                shown += 1;
+                let count = app.session.library.in_design(device, app.session.schematic.as_ref(), app.session.pcb.as_ref());
+                egui::Frame::NONE.fill(t.panel_header).inner_margin(6.0).corner_radius(t.radius_sm).show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        let (rect, _) = ui.allocate_exact_size(egui::vec2(18.0, 18.0), egui::Sense::hover());
+                        crate::icons::paint_icon(ui.painter(), rect, "select_components", 1.0);
+                        ui.vertical(|ui| {
+                            ui.label(egui::RichText::new(&device.name).strong().color(t.text));
+                            let footprint = device.footprint.as_deref().unwrap_or("—");
+                            let model = device.model.as_deref().unwrap_or("—");
+                            ui.label(egui::RichText::new(format!("{} · {} · 3D {}", device.category, footprint, model)).small().color(t.text_dim));
+                        });
+                        if ui.button(crate::i18n::tr("library.place")).clicked() {
+                            place = Some(device.id.clone());
+                        }
+                        ui.label(egui::RichText::new(count.to_string()).small().color(t.accent));
+                    });
+                });
+                ui.add_space(t.space_4);
+            }
+            if shown == 0 {
+                ui.label(crate::i18n::tr("library.none"));
+            }
+        });
+    });
+    app.electronics.manager_filter = filter;
+    app.electronics.manager_open = open;
+    if let Some(id) = place {
+        app.electronics.place_device = Some(id);
+        app.electronics.tool = Tool::Device;
+    }
 }
 
 /// The screen/world transform shared by the drawing and the pointer.

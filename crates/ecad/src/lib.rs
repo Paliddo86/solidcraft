@@ -20,6 +20,8 @@ pub use pcb::{
     FOOTPRINTS, Footprint, FootprintDef, Layer, MAX_PCB_BYTES, MAX_PCB_ITEMS, MAX_POLYGON_POINTS, MAX_TRACK_POINTS, NetSummary, Pad, PadDef, Pcb,
     Track, Via, Zone, footprint_def,
 };
+pub mod library;
+pub use library::{Device, Library};
 
 /// Largest schematic file `schematic.open` reads.
 pub const MAX_SCHEMATIC_BYTES: u64 = 16 * 1024 * 1024;

@@ -148,8 +148,11 @@ Piano dettagliato: `docs/ecad-ui-plan.md`.
        PLACE / CONNECT / ROUTE / BOARD / INSPECT; comandi UI-only
        (`schematic.select/delete/finish`, `pcb.select/delete/finish`);
        sincronizzazione tab ribbon ↔ canvas; label en+it.
-- [ ] 8.2 **Component manager**: modello libreria (simboli, footprint, 3D),
-       Place/Replace, import KiCad/STEP.
+- [x] 8.2a **Component manager**: modello `Library`/`Device` (simbolo,
+       footprint, modello 3D), comandi `library.list/enable/add_device` e
+       `component.place`/`pcb.component.place`, pannello con ricerca, icone,
+       Place, conteggio "in design" e stato 3D.
+- [ ] 8.2b Import KiCad/STEP nella libreria (symbol/footprint/3D).
 - [ ] 8.3 Editor simbolo/footprint/3D e board 3D con i modelli.
 - [ ] 8.4 DRC/ERC/ratsnest e design rules.
 
@@ -210,3 +213,12 @@ Piano dettagliato: `docs/ecad-ui-plan.md`.
   card del workspace mostra "Elettronica". Screenshot
   `/tmp/solidcraft-ecad-demo/app-editing-it.png`. Piano UI/libreria in
   `docs/ecad-ui-plan.md`; prossimo M2 (component manager).
+- 2026-10-28 — **Fase 8 M2a**: libreria `Library`/`Device` in
+  `crates/ecad/src/library.rs`, comandi `library.list/enable/add_device`,
+  `component.place`/`pcb.component.place`, pannello **Gestore componenti**
+  (ricerca, icone, Place, "in design", stato 3D) in italiano. Test live: 9
+  device, R2 piazzato dalla libreria, in_design resistor=2/ic8=2. Screenshot
+  `/tmp/solidcraft-ecad-demo/app-m2.png`. **Prossimo**: import KiCad/STEP nella
+  libreria (M2b); poi editor/board 3D. **Nota**: quando il workspace sarà
+  abbastanza funzionante, import Eagle `.sch`/`.brd` per verificare la
+  compatibilità (M6 nel piano UI).

@@ -293,12 +293,14 @@ pub const SECTIONS: &[Section] = &[
     Section { tab: "SCHEMATIC", panel: "PLACE", promoted: 2, ids: &["schematic.symbol.place", "schematic.label"] },
     Section { tab: "SCHEMATIC", panel: "CONNECT", promoted: 2, ids: &["schematic.wire", "schematic.finish"] },
     Section { tab: "SCHEMATIC", panel: "INSPECT", promoted: 1, ids: &["schematic.info"] },
+    Section { tab: "SCHEMATIC", panel: "LIBRARY", promoted: 1, ids: &["library.manager"] },
     Section { tab: "PCB", panel: "FILE", promoted: 1, ids: &["pcb.create"] },
     Section { tab: "PCB", panel: "DESIGN", promoted: 2, ids: &["pcb.select", "pcb.delete"] },
     Section { tab: "PCB", panel: "PLACE", promoted: 2, ids: &["pcb.footprint.place", "pcb.via"] },
     Section { tab: "PCB", panel: "ROUTE", promoted: 2, ids: &["pcb.track", "pcb.finish"] },
     Section { tab: "PCB", panel: "BOARD", promoted: 1, ids: &["pcb.zone"] },
     Section { tab: "PCB", panel: "INSPECT", promoted: 1, ids: &["pcb.info"] },
+    Section { tab: "PCB", panel: "LIBRARY", promoted: 1, ids: &["library.manager"] },
 ];
 
 // Migration data only: Render commands remain registered, but have no live ribbon sections.

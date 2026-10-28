@@ -1,6 +1,6 @@
 # SolidCraft — Piano UI Electronics (ribbon + component manager)
 
-> Stato: **M1 (ribbon contestuale) completato** · Prossimo passo: M2 component manager · Ultimo aggiornamento: 2026-10-27
+> Stato: **M2 (libreria + Component Manager) completato** · Prossimo passo: import KiCad/STEP nella libreria (M2b), editor e board 3D · Ultimo aggiornamento: 2026-10-28
 > Branch `ecad`, allineato a `upstream/main` (v0.25.1, merge `7dc9b850`) e con il PR KiCad #5092 già incluso (`3b07c355`).
 
 Scopo: portare il workspace Electronics da "canvas con toolbar minima" a un
@@ -201,6 +201,10 @@ via `app.run`.
   errori; test con board di esempio.
 - **M5 — Sync e output**: sincronizzazione schematico↔PCB (annotate,
   forward/backward), BOM, Gerber/drill, export KiCad.
+- **M6 — Eagle**: quando il workspace è abbastanza funzionante, importare
+  file Eagle `.sch`/`.brd` (XML) per schematico e board, mappandoli su
+  `Schematic`/`Pcb` e sulla libreria (device, symbol, package); test di
+  compatibilità con file Eagle di esempio. Dopo M4.
 
 ## 5. Decisioni aperte
 
