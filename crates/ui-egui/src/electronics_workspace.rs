@@ -343,6 +343,15 @@ fn select_symbol(app: &SolveApp, at: [f64; 2]) -> Option<u64> {
         .map(|(id, _)| id)
 }
 
+fn selected_reference(app: &SolveApp) -> Option<String> {
+    match app.electronics.tab {
+        Tab::Schematic => {
+            app.session.schematic.as_ref()?.symbols.iter().find(|s| Some(s.id) == app.electronics.selected).map(|s| s.reference.clone())
+        }
+        Tab::Pcb => app.session.pcb.as_ref()?.footprints.iter().find(|f| Some(f.id) == app.electronics.selected).map(|f| f.reference.clone()),
+    }
+}
+
 fn select_footprint(app: &SolveApp, at: [f64; 2]) -> Option<u64> {
     let board = app.session.pcb.as_ref()?;
     board
@@ -404,6 +413,8 @@ fn manager_window(app: &mut SolveApp, ctx: &egui::Context) {
     let t = crate::theme::Tokens::get();
     let mut open = app.electronics.manager_open;
     let mut place = None;
+    let mut replace = None;
+    let replace_reference = selected_reference(app);
     let mut filter = std::mem::take(&mut app.electronics.manager_filter);
     egui::Window::new(crate::i18n::tr("library.manager")).open(&mut open).default_width(360.0).resizable(true).show(ctx, |ui| {
         ui.add(egui::TextEdit::singleline(&mut filter).hint_text(crate::i18n::tr("library.search")).desired_width(ui.available_width()));
@@ -430,6 +441,9 @@ fn manager_window(app: &mut SolveApp, ctx: &egui::Context) {
                         if ui.button(crate::i18n::tr("library.place")).clicked() {
                             place = Some(device.id.clone());
                         }
+                        if replace_reference.is_some() && ui.button(crate::i18n::tr("library.replace")).clicked() {
+                            replace = Some(device.id.clone());
+                        }
                         ui.label(egui::RichText::new(count.to_string()).small().color(t.accent));
                     });
                 });
@@ -445,6 +459,11 @@ fn manager_window(app: &mut SolveApp, ctx: &egui::Context) {
     if let Some(id) = place {
         app.electronics.place_device = Some(id);
         app.electronics.tool = Tool::Device;
+    }
+    if let (Some(id), Some(reference)) = (replace, replace_reference)
+        && let Err(e) = app.run("library.replace", json!({"reference": reference, "device": id}))
+    {
+        app.electronics.status = e;
     }
 }
 

@@ -13,6 +13,7 @@ const ADD: &str = "library.add_device";
 const PLACE: &str = "component.place";
 const PCB_PLACE: &str = "pcb.component.place";
 const MANAGER: &str = "library.manager";
+const REPLACE: &str = "library.replace";
 
 pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new(MANAGER, "Component Manager", manager).noundo().doc_only().at("SCHEMATIC", "LIBRARY").icon("select_components"),
@@ -32,6 +33,9 @@ pub static COMMANDS: &[CommandSpec] = &[
     ),
     CommandSpec::new(PCB_PLACE, "Place Component", pcb_place).noundo().doc_only().params(
         "device: a library device id; at: [x, y] in mm; rotation?: degrees; reference?: the reference; value?: its value; layer?: F.Cu | B.Cu → id, reference, device, footprint, at",
+    ),
+    CommandSpec::new(REPLACE, "Replace Component", replace).noundo().doc_only().params(
+        "reference: the component's reference; device: a library device id → reference, device, replaced",
     ),
 ];
 
@@ -114,6 +118,55 @@ fn pcb_place(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({ "id": id, "reference": reference, "device": device.id, "footprint": footprint, "at": at }))
 }
 
+fn replace(s: &mut Session, p: &Value) -> Result<Value> {
+    let reference = str_(p, "reference").ok_or_else(|| bad(REPLACE, "`reference` is the component's reference"))?;
+    let device_id = str_(p, "device").ok_or_else(|| bad(REPLACE, "`device` is a library device id"))?;
+    let device = s.library.device(device_id).cloned().ok_or_else(|| bad(REPLACE, format!("no device `{device_id}`")))?;
+    let symbol_def = solidcraft_ecad::SYMBOLS
+        .iter()
+        .find(|d| d.kind == device.symbol)
+        .ok_or_else(|| bad(REPLACE, format!("no symbol kind `{}`", device.symbol)))?;
+    let pins: Vec<solidcraft_ecad::Pin> =
+        symbol_def.pins.iter().map(|p| solidcraft_ecad::Pin { number: p.number.to_string(), name: p.name.to_string(), offset: [p.x, p.y] }).collect();
+    let mut replaced = 0;
+    if let Some(sch) = s.schematic.as_mut()
+        && let Some(symbol) = sch.symbols.iter_mut().find(|x| x.reference == reference)
+    {
+        symbol.kind = device.symbol.clone();
+        symbol.pins = pins;
+        replaced += 1;
+    }
+    if let Some(footprint_kind) = device.footprint.as_deref() {
+        let def = solidcraft_ecad::FOOTPRINTS
+            .iter()
+            .find(|d| d.kind == footprint_kind)
+            .ok_or_else(|| bad(REPLACE, format!("no footprint kind `{footprint_kind}`")))?;
+        if let Some(board) = s.pcb.as_mut()
+            && let Some(footprint) = board.footprints.iter_mut().find(|x| x.reference == reference)
+        {
+            let nets: std::collections::BTreeMap<String, Option<String>> = footprint.pads.iter().map(|p| (p.number.clone(), p.net.clone())).collect();
+            footprint.kind = footprint_kind.to_string();
+            footprint.pads = def
+                .pads
+                .iter()
+                .map(|p| solidcraft_ecad::Pad {
+                    number: p.number.to_string(),
+                    at: [p.x, p.y],
+                    size: [p.w, p.h],
+                    shape: p.shape.to_string(),
+                    drill_mm: p.drill,
+                    net: nets.get(p.number).cloned().flatten(),
+                })
+                .collect();
+            replaced += 1;
+        }
+    }
+    if replaced == 0 {
+        return Err(bad(REPLACE, format!("no component `{reference}`")));
+    }
+    Ok(json!({ "reference": reference, "device": device.id, "replaced": replaced }))
+}
+
 fn place_params<'p>(s: &Session, p: &'p Value, cmd: &str) -> Result<(solidcraft_ecad::Device, [f64; 2], f64, Option<&'p str>, Option<&'p str>)> {
     let id = str_(p, "device").ok_or_else(|| bad(cmd, "`device` is a library device id"))?;
     let device = s.library.device(id).cloned().ok_or_else(|| bad(cmd, format!("no device `{id}`")))?;
@@ -133,4 +186,27 @@ fn point(p: &Value, k: &str) -> Option<[f64; 2]> {
     let x = a.first()?.as_f64()?;
     let y = a.get(1)?.as_f64()?;
     (x.is_finite() && y.is_finite()).then_some([x, y])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Session;
+
+    fn run(s: &mut Session, id: &str, params: Value) -> Value {
+        s.execute(id, &params).unwrap_or_else(|why| panic!("{id}: {why}"))
+    }
+
+    #[test]
+    fn a_component_is_replaced_from_the_library() {
+        let mut s = Session::default();
+        run(&mut s, "schematic.create", json!({}));
+        run(&mut s, "pcb.create", json!({}));
+        run(&mut s, "component.place", json!({"device": "resistor", "at": [50, 50], "reference": "R7"}));
+        run(&mut s, "pcb.component.place", json!({"device": "resistor", "at": [30, 30], "reference": "R7"}));
+        let r = run(&mut s, "library.replace", json!({"reference": "R7", "device": "ic8"}));
+        assert_eq!(r["replaced"], json!(2));
+        assert!(s.schematic.as_ref().unwrap().symbols.iter().any(|x| x.reference == "R7" && x.kind == "ic8" && x.pins.len() == 8));
+        assert!(s.pcb.as_ref().unwrap().footprints.iter().any(|x| x.reference == "R7" && x.kind == "ic8_dip"));
+    }
 }
