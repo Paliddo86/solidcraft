@@ -1,6 +1,8 @@
 # SolidCraft — Piano ECAD (PCB / Electronics)
 
-> Stato: **Fase 8 M1 (ribbon Electronics) completata** · Prossimo passo: M2 component manager (libreria/Place/Replace) · Ultimo aggiornamento: 2026-10-27
+> Stato: **Fase 8 M2b completata** (libreria + Component Manager + Replace) · Prossimo: redesign manager, M2c import KiCad/STEP, Fase 9 · Ultimo aggiornamento: 2026-10-28
+> Base: branch `ecad`, allineato a `upstream/main` v0.25.1 (`ae07e36a`); PR KiCad #5092 già incluso.
+> Handoff / continuità: `docs/ecad-handoff.md`.
 > Base: branch `ecad` allineato a `upstream/main` (1cd14e24); PR #5092 portato con merge.
 
 Scopo: integrare un workspace di progettazione elettronica stile Fusion360
@@ -19,6 +21,9 @@ dall'import KiCad già avviato upstream (#5091 / #5092).
    aggiungi una riga al "Log" (data, cosa è cambiato, prossimo passo).
 6. Non cancellare o riordinare le voci completate; aggiungi nuove voci in coda
    alla loro fase. Ogni arco di lavoro = un commit/PR (vedi CONTRIBUTING).
+7. Prima di iniziare un nuovo piano, dopo conferma dell'utente, aggiorna
+   `ecad` da `upstream/main` (fetch + merge, conflitti con priorità a main) e
+   ri-esegui build/test prima di scrivere il piano.
 
 ## Regole non negoziabili (richiamo)
 - Clean-room: niente lettura/copia di codice GPL (KiCad, LibrePCB, Horizon EDA,
@@ -156,6 +161,20 @@ Piano dettagliato: `docs/ecad-ui-plan.md`.
 - [ ] 8.3 Editor simbolo/footprint/3D e board 3D con i modelli.
 - [ ] 8.4 DRC/ERC/ratsnest e design rules.
 
+## Fase 9 — Revisione comandi di editing (uno per uno)
+
+Dopo aver completato il "grosso": rivedere comportamento, parametri, UX, nomi,
+icone e scorciatoie di ogni comando della toolbar/ribbon, uno per uno.
+
+- **Schematico**: Seleziona, Resistenza, Condensatore, Circuito integrato,
+  Massa, Alimentazione, Connettore, Filo, Etichetta di rete, Termina filo,
+  Elimina.
+- **PCB**: Seleziona, R 0603, C 0603, DIP-8, Header, Foro, Traccia, Via,
+  Zona di rame, Termina traccia, Elimina.
+
+Per ciascuno: input/parametri, anteprima, snap, undo, messaggi, icona, label
+en/it, test. Prima di iniziare: aggiornare da `upstream/main` dopo conferma.
+
 ## Log
 - 2026-10-26 — Piano creato; repo allineato a upstream/main (1cd14e24); nessun
   lavoro iniziato.
@@ -222,3 +241,12 @@ Piano dettagliato: `docs/ecad-ui-plan.md`.
   libreria (M2b); poi editor/board 3D. **Nota**: quando il workspace sarà
   abbastanza funzionante, import Eagle `.sch`/`.brd` per verificare la
   compatibilità (M6 nel piano UI).
+- 2026-10-28 — **M2b**: `library.replace` (simbolo + footprint, net preservate)
+  e pulsante "Sostituisci" nel Gestore componenti; test engine **11/11**, check
+  UI OK. Commit `858268d8`.
+- 2026-10-28 — Note: **redesign del Component Manager** (riferimenti Altium,
+  KiCad, Fusion, OrCAD, Ultra Librarian; layout a 3 zone in
+  `docs/ecad-ui-plan.md` §2b) e **Fase 9** revisione comandi editing.
+  Creato `docs/ecad-handoff.md` per la continuità. `upstream/main` è a
+  `cee995e7` (nuovi commit dopo `ae07e36a`): **non fuso**, si aggiornerà dopo
+  conferma prima del prossimo piano.

@@ -225,3 +225,39 @@ via `app.run`.
 2. M1: `workspace::visible_tabs` → SCHEMATIC/PCB quando Electronics è attivo;
    `SECTIONS`/`panels` per i due tab; `.at(...)` sui comandi; label en+it.
 3. M2: `crates/ecad/src/library.rs` + comandi `library.*` + Component Manager.
+
+## 2b. Redesign del Component Manager (riferimenti professionali)
+
+Da fare dopo M2c e prima di M3. Riferimenti studiati per comportamento (nessun
+codice o asset copiato):
+
+- **Altium Designer — Components panel**: dropdown della libreria, ricerca con
+  scope Components/Footprints/3D Models, tabella con colonne, anteprima 2D/3D
+  con toggle.
+- **KiCad — Manage Symbol/Footprint Libraries**: tab Global/Project, tabella
+  delle librerie con stato, symbol chooser con anteprima.
+- **Fusion 360 Electronics — Library Manager**: In Design / In Use / Available,
+  toggle In Use, Place.
+- **OrCAD/Allegro — Placement List / Library Manager**: lista con anteprima del
+  footprint, gestione 3D, libreria centralizzata.
+- **Ultra Librarian / SnapEDA**: ricerca, anteprima, drag&drop nell'editor.
+
+Layout proposto (dock ridimensionabile, 3 colonne):
+
+1. **Librerie/Categorie** (sinistra): albero `Libreria → Categoria → Device`,
+   stato In Use / In Design / Available, filtri.
+2. **Tabella device** (centro): colonne Nome, Categoria, Simbolo, Footprint,
+   3D, MPN/Datasheet, In Design, In Use; ordinabile; ricerca globale; filtri
+   (categoria, solo In Use, con 3D).
+3. **Anteprima + proprietà** (destra): canvas simbolo, canvas footprint,
+   thumbnail 3D con toggle 2D/3D; attributi modificabili; datasheet.
+
+Barra superiore: scope libreria, ricerca, "Aggiungi libreria"/"Importa",
+"Nuovo device". Barra inferiore: **Place**, **Replace**, **Aggancia 3D**,
+**Modifica**, **Aggiorna dalla libreria**.
+
+Comportamenti: doppio click = Place; drag&drop sul canvas; menu contestuale
+(Place, Replace, Edit, Delete, Enable); multiselezione; stato 3D mancante
+evidenziato; scorciatoie; label en/it; test.
+
+Milestone **M2d — Redesign manager**.
