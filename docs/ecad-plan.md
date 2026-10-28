@@ -1,6 +1,6 @@
 # SolidCraft — Piano ECAD (PCB / Electronics)
 
-> Stato: **Fase 8 M2b completata** (libreria + Component Manager + Replace) · Prossimo: redesign manager, M2c import KiCad/STEP, Fase 9 · Ultimo aggiornamento: 2026-10-28
+> Stato: **Fase 8 M2d completata** (redesign Gestore componenti a 3 zone) · Prossimo: M2c import KiCad/STEP, M3 editor/3D, Fase 9 · Ultimo aggiornamento: 2026-10-28
 > Base: branch `ecad`, allineato a `upstream/main` v0.25.1 (`ae07e36a`); PR KiCad #5092 già incluso.
 > Handoff / continuità: `docs/ecad-handoff.md`.
 > Base: branch `ecad` allineato a `upstream/main` (1cd14e24); PR #5092 portato con merge.
@@ -158,6 +158,9 @@ Piano dettagliato: `docs/ecad-ui-plan.md`.
        `component.place`/`pcb.component.place`, pannello con ricerca, icone,
        Place, conteggio "in design" e stato 3D.
 - [ ] 8.2b Import KiCad/STEP nella libreria (symbol/footprint/3D).
+- [x] 8.2d Redesign del **Gestore componenti** a 3 zone: categorie a sinistra,
+       tabella (nome, simbolo, footprint, 3D, in design) al centro, anteprima
+       simbolo/footprint e stato 3D a destra; ricerca, Place/Replace, icone.
 - [ ] 8.3 Editor simbolo/footprint/3D e board 3D con i modelli.
 - [ ] 8.4 DRC/ERC/ratsnest e design rules.
 
@@ -250,3 +253,10 @@ en/it, test. Prima di iniziare: aggiornare da `upstream/main` dopo conferma.
   Creato `docs/ecad-handoff.md` per la continuità. `upstream/main` è a
   `cee995e7` (nuovi commit dopo `ae07e36a`): **non fuso**, si aggiornerà dopo
   conferma prima del prossimo piano.
+- 2026-10-28 — **Upstream**: merge `upstream/main` `cee995e7` in `ecad`
+  (commit `247f73b5`), **nessun conflitto**; build app **6m07s**.
+- 2026-10-28 — **M2d redesign Gestore componenti**: finestra a 3 zone con
+  categorie, tabella (Componente/Simbolo/Footprint/Modello 3D/Nel progetto) e
+  anteprima 2D del simbolo + footprint (rame) + stato 3D; ricerca, Place e
+  Replace, tutto in italiano. Screenshot
+  `/tmp/solidcraft-ecad-demo/app-m2d.png`. Build **2m05s**.

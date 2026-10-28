@@ -61,6 +61,7 @@ pub mod drag_extrude;
 pub mod drag_snap;
 pub mod easyprint_ui;
 pub mod edit_clipboard;
+pub mod electronics_manager;
 pub mod electronics_workspace;
 mod feature_edit;
 #[cfg(test)]

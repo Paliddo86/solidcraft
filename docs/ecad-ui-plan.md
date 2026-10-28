@@ -1,6 +1,6 @@
 # SolidCraft — Piano UI Electronics (ribbon + component manager)
 
-> Stato: **M2 (libreria + Component Manager) completato** · Prossimo passo: import KiCad/STEP nella libreria (M2b), editor e board 3D · Ultimo aggiornamento: 2026-10-28
+> Stato: **M2d (redesign Gestore componenti) completato** · Prossimo passo: M2c import KiCad/STEP, M3 editor/board 3D · Ultimo aggiornamento: 2026-10-28
 > Branch `ecad`, allineato a `upstream/main` (v0.25.1, merge `7dc9b850`) e con il PR KiCad #5092 già incluso (`3b07c355`).
 
 Scopo: portare il workspace Electronics da "canvas con toolbar minima" a un

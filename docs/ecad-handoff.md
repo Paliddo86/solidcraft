@@ -1,6 +1,6 @@
 # SolidCraft ECAD — Handoff (come continuare)
 
-> Ultimo aggiornamento: 2026-10-28 · Branch `ecad` · Head `858268d8` (M2b)
+> Ultimo aggiornamento: 2026-10-28 · Branch `ecad` · merge upstream `247f73b5` + M2d
 > Questa pagina è il punto di ingresso per un nuovo agente: **non serve
 > rianalizzare tutto**.
 

@@ -41,6 +41,8 @@ pub struct State {
     pub status: String,
     pub manager_open: bool,
     pub manager_filter: String,
+    pub manager_selected: Option<String>,
+    pub manager_category: Option<String>,
     pub place_device: Option<String>,
 }
 
@@ -56,6 +58,8 @@ impl Default for State {
             status: String::new(),
             manager_open: true,
             manager_filter: String::new(),
+            manager_selected: None,
+            manager_category: None,
             place_device: None,
         }
     }
@@ -343,7 +347,7 @@ fn select_symbol(app: &SolveApp, at: [f64; 2]) -> Option<u64> {
         .map(|(id, _)| id)
 }
 
-fn selected_reference(app: &SolveApp) -> Option<String> {
+pub(crate) fn selected_reference(app: &SolveApp) -> Option<String> {
     match app.electronics.tab {
         Tab::Schematic => {
             app.session.schematic.as_ref()?.symbols.iter().find(|s| Some(s.id) == app.electronics.selected).map(|s| s.reference.clone())
@@ -404,67 +408,9 @@ pub fn start_tool(app: &mut SolveApp, id: &str) -> bool {
     true
 }
 
-/// The Component Manager: the library's devices, with a search, their symbol/footprint/3D status
-/// and a Place button that arms the canvas.
+/// The Component Manager lives in `electronics_manager.rs`.
 fn manager_window(app: &mut SolveApp, ctx: &egui::Context) {
-    if !app.electronics.manager_open {
-        return;
-    }
-    let t = crate::theme::Tokens::get();
-    let mut open = app.electronics.manager_open;
-    let mut place = None;
-    let mut replace = None;
-    let replace_reference = selected_reference(app);
-    let mut filter = std::mem::take(&mut app.electronics.manager_filter);
-    egui::Window::new(crate::i18n::tr("library.manager")).open(&mut open).default_width(360.0).resizable(true).show(ctx, |ui| {
-        ui.add(egui::TextEdit::singleline(&mut filter).hint_text(crate::i18n::tr("library.search")).desired_width(ui.available_width()));
-        ui.add_space(t.space_6);
-        let needle = filter.trim().to_lowercase();
-        egui::ScrollArea::vertical().max_height(430.0).show(ui, |ui| {
-            let mut shown = 0;
-            for device in &app.session.library.devices {
-                if !needle.is_empty() && !format!("{} {} {}", device.id, device.name, device.category).to_lowercase().contains(&needle) {
-                    continue;
-                }
-                shown += 1;
-                let count = app.session.library.in_design(device, app.session.schematic.as_ref(), app.session.pcb.as_ref());
-                egui::Frame::NONE.fill(t.panel_header).inner_margin(6.0).corner_radius(t.radius_sm).show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        let (rect, _) = ui.allocate_exact_size(egui::vec2(18.0, 18.0), egui::Sense::hover());
-                        crate::icons::paint_icon(ui.painter(), rect, "select_components", 1.0);
-                        ui.vertical(|ui| {
-                            ui.label(egui::RichText::new(&device.name).strong().color(t.text));
-                            let footprint = device.footprint.as_deref().unwrap_or("—");
-                            let model = device.model.as_deref().unwrap_or("—");
-                            ui.label(egui::RichText::new(format!("{} · {} · 3D {}", device.category, footprint, model)).small().color(t.text_dim));
-                        });
-                        if ui.button(crate::i18n::tr("library.place")).clicked() {
-                            place = Some(device.id.clone());
-                        }
-                        if replace_reference.is_some() && ui.button(crate::i18n::tr("library.replace")).clicked() {
-                            replace = Some(device.id.clone());
-                        }
-                        ui.label(egui::RichText::new(count.to_string()).small().color(t.accent));
-                    });
-                });
-                ui.add_space(t.space_4);
-            }
-            if shown == 0 {
-                ui.label(crate::i18n::tr("library.none"));
-            }
-        });
-    });
-    app.electronics.manager_filter = filter;
-    app.electronics.manager_open = open;
-    if let Some(id) = place {
-        app.electronics.place_device = Some(id);
-        app.electronics.tool = Tool::Device;
-    }
-    if let (Some(id), Some(reference)) = (replace, replace_reference)
-        && let Err(e) = app.run("library.replace", json!({"reference": reference, "device": id}))
-    {
-        app.electronics.status = e;
-    }
+    crate::electronics_manager::show(app, ctx);
 }
 
 /// The screen/world transform shared by the drawing and the pointer.
